@@ -45,6 +45,7 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
+// [수정됨] 주유/소모품/지출은 종료,소요,상차,하차 미표기
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
@@ -59,28 +60,42 @@ export function displayTodayRecords(date) {
         const tr = document.createElement('tr');
         tr.onclick = () => editRecord(r.id);
 
-        let endTime = '진행중';
-        let duration = '-';
+        const isTransport = (r.type === '화물운송' || r.type === '대기');
 
-        const idx = dayRecords.findIndex(item => item.id === r.id);
-        if (idx > -1 && idx < dayRecords.length - 1) {
-            const next = dayRecords[idx+1];
-            endTime = next.time;
-            const diff = new Date(`2000-01-01T${next.time}`) - new Date(`2000-01-01T${r.time}`);
-            const h = Math.floor(Math.abs(diff)/3600000);
-            const m = Math.floor((Math.abs(diff)%3600000)/60000);
-            duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
-        }
+        // 1. 비운송 항목(주유 등)은 빈 값으로 초기화
+        let endTime = '';
+        let duration = '';
+        let fromCell = '';
+        let toCell = '';
+        let noteCell = '';
 
-        let fromCell = '-', toCell = '-', noteCell = '';
-        if(r.type === '화물운송' || r.type === '대기') {
+        // 2. 화물운송/대기인 경우에만 시간 및 장소 계산
+        if (isTransport) {
+            endTime = '진행중';
+            duration = '-';
+            fromCell = '-';
+            toCell = '-';
+
+            const idx = dayRecords.findIndex(item => item.id === r.id);
+            if (idx > -1 && idx < dayRecords.length - 1) {
+                const next = dayRecords[idx+1];
+                endTime = next.time;
+                const diff = new Date(`2000-01-01T${next.time}`) - new Date(`2000-01-01T${r.time}`);
+                const h = Math.floor(Math.abs(diff)/3600000);
+                const m = Math.floor((Math.abs(diff)%3600000)/60000);
+                duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            }
+
             const fromVal = (r.from||'').replace(/"/g, '&quot;');
             const toVal = (r.to||'').replace(/"/g, '&quot;');
             fromCell = `<span class="location-clickable" data-center="${fromVal}">${r.from || ''}</span>`;
             toCell = `<span class="location-clickable" data-center="${toVal}">${r.to || ''}</span>`;
+            
             if(r.distance) noteCell = `<span class="note">${r.distance} km</span>`;
             if(r.type === '대기') noteCell = `<span class="note">대기중</span>`;
+
         } else {
+            // 주유/소모품/지출인 경우 내용만 표시
             noteCell = `<strong>${r.type}</strong><br><span class="note">${r.expenseItem || r.supplyItem || r.brand || ''}</span>`;
         }
 
@@ -327,7 +342,6 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
-// [수정됨] 근무일 계산 기준 변경: type이 '화물운송'인 경우만 날짜 카운트
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
@@ -344,7 +358,6 @@ export function generatePrintView(year, month, period, isDetailed) {
     target.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     
-    // [핵심 변경] 근무일: 전체 기록이 아닌 '화물운송' 기록만 필터링하여 날짜 중복 제거
     const workDays = new Set(
         target.filter(r => r.type === '화물운송')
               .map(r => getStatisticalDate(r.date, r.time))
