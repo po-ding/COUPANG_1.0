@@ -41,15 +41,50 @@ function initialSetup() {
     document.getElementById('mileage-correction').value = localStorage.getItem('mileage_correction') || 0;
     document.getElementById('subsidy-limit').value = localStorage.getItem('fuel_subsidy_limit') || 0;
     
+    // [중요] '오늘 기록' 조회용 날짜 초기값 세팅 (04시 기준 반영)
+    const todayStr = Utils.getTodayString();
+    const nowTime = Utils.getCurrentTimeString();
+    // 04시 기준 오늘 날짜 계산 (utils의 getStatisticalDate 활용)
+    const statToday = Utils.getStatisticalDate(todayStr, nowTime);
+    
+    document.getElementById('today-date-picker').value = statToday;
+
     UI.resetForm();
     updateAllDisplays();
 }
 
 function updateAllDisplays() {
-    Stats.displayTodayRecords(UI.els.dateInput.value);
+    // 현재 date picker에 설정된 날짜 기준으로 조회
+    const targetDate = document.getElementById('today-date-picker').value || Utils.getTodayString();
+    Stats.displayTodayRecords(targetDate);
     Stats.displayDailyRecords();
     Stats.displayWeeklyRecords();
     Stats.displayMonthlyRecords();
+}
+
+// ============================================
+// 날짜 이동 헬퍼 함수 (안전한 계산)
+// ============================================
+function moveDate(offset) {
+    const picker = document.getElementById('today-date-picker');
+    if (!picker.value) picker.value = Utils.getTodayString();
+
+    // 문자열을 직접 분해하여 Date 객체 생성 (timezone 문제 방지)
+    const [y, m, d] = picker.value.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d); // 월은 0부터 시작
+
+    // 날짜 더하기/빼기
+    dateObj.setDate(dateObj.getDate() + offset);
+
+    // 다시 YYYY-MM-DD 형식으로 변환
+    const newY = dateObj.getFullYear();
+    const newM = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const newD = String(dateObj.getDate()).padStart(2, '0');
+    const newDateStr = `${newY}-${newM}-${newD}`;
+
+    // 값 적용 및 조회
+    picker.value = newDateStr;
+    Stats.displayTodayRecords(newDateStr);
 }
 
 // 이벤트 리스너 연결
@@ -162,21 +197,14 @@ UI.els.fuelUnitPriceInput.addEventListener('input', () => { const p=parseFloat(U
 UI.els.fuelLitersInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.typeSelect.addEventListener('change', UI.toggleUI);
 document.getElementById('refresh-btn').addEventListener('click', () => { UI.resetForm(); location.reload(); });
-document.getElementById('today-date-picker').addEventListener('change', () => Stats.displayTodayRecords(UI.els.dateInput.value));
-document.getElementById('prev-day-btn').addEventListener('click', () => {
-    const d = new Date(document.getElementById('today-date-picker').value);
-    d.setDate(d.getDate() - 1);
-    const newDate = d.toISOString().split('T')[0];
-    document.getElementById('today-date-picker').value = newDate;
-    Stats.displayTodayRecords(newDate);
-});
-document.getElementById('next-day-btn').addEventListener('click', () => {
-    const d = new Date(document.getElementById('today-date-picker').value);
-    d.setDate(d.getDate() + 1);
-    const newDate = d.toISOString().split('T')[0];
-    document.getElementById('today-date-picker').value = newDate;
-    Stats.displayTodayRecords(newDate);
-});
+
+// [수정됨] 날짜 변경 이벤트 (직접 선택 시)
+document.getElementById('today-date-picker').addEventListener('change', () => Stats.displayTodayRecords(document.getElementById('today-date-picker').value));
+
+// [수정됨] 화살표 버튼 이벤트 (안전한 moveDate 함수 사용)
+document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
+document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
+
 
 // 주소 복사 이벤트 위임
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
