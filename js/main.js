@@ -226,8 +226,10 @@ UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
     });
 });
 
+// [수정] 주소 복사 시 새로고침 방지 (preventDefault 추가)
 UI.els.addressDisplay.addEventListener('click', (e) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault(); 
+    e.stopPropagation();
     if(e.target.classList.contains('address-clickable')) {
         Utils.copyTextToClipboard(e.target.dataset.address, '주소 복사됨');
     }
@@ -242,9 +244,11 @@ document.getElementById('today-date-picker').addEventListener('change', () => St
 document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
 document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
 
+// [수정] 리스트에서 주소 복사 시 새로고침 방지
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
     const target = e.target.closest('.location-clickable');
     if(target) {
+        e.preventDefault(); // 필수
         e.stopPropagation();
         const center = target.getAttribute('data-center');
         if(center) {
