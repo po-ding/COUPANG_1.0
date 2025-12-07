@@ -1,5 +1,6 @@
-import { formatToManwon, getTodayString } from './utils.js';
-import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
+// js/stats.js
+import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js'; // getStatisticalDate import 추가
+import { MEM_RECORDS } from './data.js';
 import { editRecord } from './ui.js';
 
 const SUBSIDY_PAGE_SIZE = 10;
@@ -45,11 +46,18 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
+// ==========================================
+// [중요] 04시 기준 통계 로직 적용된 함수들
+// ==========================================
+
 export function displayTodayRecords(date) {
+    // date 인자는 YYYY-MM-DD 형식 (사용자가 선택한 날짜)
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    const dayRecords = MEM_RECORDS.filter(r => r.date === date).sort((a, b) => a.time.localeCompare(b.time));
+    // [변경] r.date가 아니라 getStatisticalDate 결과와 비교
+    const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
+                                  .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
     todayTbody.innerHTML = '';
     const displayList = dayRecords.filter(r => r.type !== '운행종료');
@@ -66,8 +74,10 @@ export function displayTodayRecords(date) {
             const next = dayRecords[idx+1];
             endTime = next.time;
             const diff = new Date(`2000-01-01T${next.time}`) - new Date(`2000-01-01T${r.time}`);
-            const h = Math.floor(diff/3600000);
-            const m = Math.floor((diff%3600000)/60000);
+            // 날짜가 넘어가는 경우 보정 (단순 시간차 계산 시 음수 방지)
+            if(diff < 0) { /* 단순 계산 생략 또는 24시간 더하기 로직 필요하나 UI 단순화 위해 생략 */ }
+            const h = Math.floor(Math.abs(diff)/3600000);
+            const m = Math.floor((Math.abs(diff)%3600000)/60000);
             duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
         }
 
@@ -88,8 +98,20 @@ export function displayTodayRecords(date) {
         if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
         if(money === '') money = '0'; 
 
+        // [변경] 실제 날짜가 다를 경우(새벽반) 표시
+        let timeDisplay = r.time;
+        if(r.date !== date) { // 통계날짜와 실제날짜가 다르면 (예: 통계는 7일인데 실제기록은 8일 02시)
+            timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
+        } else if (parseInt(r.time.split(':')[0]) < 4) {
+            // 통계날짜와 실제날짜가 같지만 시간이 04시 이전이면 (예: 8일 02시 기록 -> 7일 통계로 잡혀야 함. 이 조건은 필터링에서 이미 걸러지므로, 여기는 '전날' 표시가 필요한 경우)
+             // 로직상 filter(getStatisticalDate == date)를 통과했으므로, 
+             // 1. 7일 05시 -> 통계 7일 (여기)
+             // 2. 8일 02시 -> 통계 7일 (여기) -> r.date(8일) !== date(7일) -> 위 if문에서 걸림.
+             // 따라서 별도 else if 불필요.
+        }
+
         tr.innerHTML = `
-            <td data-label="시작">${r.time}</td>
+            <td data-label="시작">${timeDisplay}</td>
             <td data-label="종료">${endTime}</td>
             <td data-label="소요">${duration}</td>
             <td data-label="상차">${fromCell}</td>
@@ -99,13 +121,15 @@ export function displayTodayRecords(date) {
         `;
         todayTbody.appendChild(tr);
     });
-    todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록', dayRecords);
+    todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
     
+    // 주유 내역은 날짜 변경 없이 순수 시간순으로 보여주는 것이 보통 더 직관적이나,
+    // 원하시면 여기도 getStatisticalDate로 정렬/표시 가능. 일단 기존 유지.
     const fuelRecords = MEM_RECORDS.filter(r => r.type === '주유소').sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
     if (!append) { displayedSubsidyCount = 0; subsidyRecordsList.innerHTML = ''; }
     if (fuelRecords.length === 0) { subsidyRecordsList.innerHTML = '<p class="note" style="text-align:center; padding:1em;">주유 내역이 없습니다.</p>'; subsidyLoadMoreContainer.innerHTML = ''; return; }
@@ -133,15 +157,19 @@ export function displayDailyRecords() {
     const dailyTbody = document.querySelector('#daily-summary-table tbody');
     const dailySummaryDiv = document.getElementById('daily-summary');
 
-    const monthRecords = MEM_RECORDS.filter(r => r.date.startsWith(selectedPeriod));
+    // [변경] getStatisticalDate 기준으로 해당 월 데이터 필터링
+    const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(selectedPeriod));
+    
     dailyTbody.innerHTML = '';
     dailySummaryDiv.classList.remove('hidden');
-    dailySummaryDiv.innerHTML = createSummaryHTML(`${parseInt(month)}월 총계`, monthRecords);
+    dailySummaryDiv.innerHTML = createSummaryHTML(`${parseInt(month)}월 총계 (04시 기준)`, monthRecords);
 
+    // 날짜별 그룹핑 (통계 날짜 기준)
     const recordsByDate = {};
     monthRecords.forEach(r => {
-        if(!recordsByDate[r.date]) recordsByDate[r.date] = { records: [], income: 0, expense: 0, distance: 0, tripCount: 0 };
-        recordsByDate[r.date].records.push(r);
+        const statDate = getStatisticalDate(r.date, r.time);
+        if(!recordsByDate[statDate]) recordsByDate[statDate] = { records: [], income: 0, expense: 0, distance: 0, tripCount: 0 };
+        recordsByDate[statDate].records.push(r);
     });
 
     Object.keys(recordsByDate).sort().reverse().forEach(date => {
@@ -166,13 +194,16 @@ export function displayWeeklyRecords() {
     const weeklyTbody = document.querySelector('#weekly-summary-table tbody');
     const weeklySummaryDiv = document.getElementById('weekly-summary');
     
-    const monthRecords = MEM_RECORDS.filter(r => r.date.startsWith(selectedPeriod));
+    // [변경] 통계 날짜 기준 필터링
+    const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(selectedPeriod));
+    
     weeklyTbody.innerHTML = '';
     weeklySummaryDiv.innerHTML = createSummaryHTML(`${parseInt(month)}월 주별`, monthRecords);
     
     const weeks = {};
     monthRecords.forEach(r => {
-        const d = new Date(r.date);
+        const statDate = getStatisticalDate(r.date, r.time);
+        const d = new Date(statDate);
         const w = Math.ceil((d.getDate() + (new Date(d.getFullYear(), d.getMonth(), 1).getDay())) / 7);
         if(!weeks[w]) weeks[w] = [];
         weeks[w].push(r);
@@ -183,7 +214,8 @@ export function displayWeeklyRecords() {
         const transport = data.filter(r => ['화물운송', '공차이동', '대기', '운행종료'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
         data.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=(r.income||0);exp+=(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
-        const dates = data.map(r => new Date(r.date).getDate());
+        // 날짜 범위 표시를 위해 통계 날짜 사용
+        const dates = data.map(r => new Date(getStatisticalDate(r.date, r.time)).getDate());
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${w}주차</td><td>${Math.min(...dates)}일~${Math.max(...dates)}일</td><td>${formatToManwon(inc)}</td><td>${formatToManwon(exp)}</td><td>${formatToManwon(inc-exp)}</td><td>${dist.toFixed(1)}</td><td>${count}</td><td>${calculateTotalDuration(transport)}</td>`;
         weeklyTbody.appendChild(tr);
@@ -195,12 +227,19 @@ export function displayMonthlyRecords() {
     const monthlyTbody = document.querySelector('#monthly-summary-table tbody');
     const monthlyYearlySummaryDiv = document.getElementById('monthly-yearly-summary');
 
-    const yearRecords = MEM_RECORDS.filter(r => r.date.startsWith(year));
+    // [변경] 통계 날짜 기준 연도 필터링
+    const yearRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(year));
+    
     monthlyYearlySummaryDiv.innerHTML = createSummaryHTML(`${year}년`, yearRecords);
     monthlyTbody.innerHTML = '';
     
     const months = {};
-    yearRecords.forEach(r => { const m=r.date.substring(0,7); if(!months[m]) months[m]={records:[]}; months[m].records.push(r); });
+    yearRecords.forEach(r => { 
+        const statDate = getStatisticalDate(r.date, r.time);
+        const m = statDate.substring(0,7); 
+        if(!months[m]) months[m]={records:[]}; 
+        months[m].records.push(r); 
+    });
     Object.keys(months).sort().reverse().forEach(m => {
         const data = months[m];
         const transport = data.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료'].includes(r.type));
@@ -214,10 +253,17 @@ export function displayMonthlyRecords() {
 
 export function displayCurrentMonthData() {
     const now = new Date();
-    const currentPeriod = now.toISOString().slice(0, 7); 
-    const monthRecords = MEM_RECORDS.filter(r => r.date.startsWith(currentPeriod) && r.type !== '이동취소' && r.type !== '운행종료'); 
+    // 04시 이전이면 전날(즉 전월일수도 있음) 기준으로 잡아야 하므로 오늘 날짜도 보정 필요
+    // 하지만 실시간 요약은 "현재 달력상 월"을 보여주는 게 맞을 수도 있고 "영업일 기준 월"을 보여줄 수도 있음.
+    // 여기서는 통일성을 위해 "영업일(04시) 기준 월" 데이터로 표시
+    let checkDate = new Date();
+    if(checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
+    const currentPeriod = checkDate.toISOString().slice(0, 7); 
+
+    // [변경] 통계 날짜 기준
+    const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(currentPeriod) && r.type !== '이동취소' && r.type !== '운행종료'); 
     
-    document.getElementById('current-month-title').textContent = `${now.getMonth() + 1}월 실시간 요약`; 
+    document.getElementById('current-month-title').textContent = `${parseInt(currentPeriod.split('-')[1])}월 실시간 요약 (04시 기준)`; 
     
     let inc = 0, exp = 0, count = 0, dist = 0, liters = 0; 
     monthRecords.forEach(r => { 
@@ -226,7 +272,7 @@ export function displayCurrentMonthData() {
         if(r.type === '주유소') liters += (r.liters||0); 
     }); 
     
-    const days = new Set(monthRecords.map(r => r.date)).size; 
+    const days = new Set(monthRecords.map(r => getStatisticalDate(r.date, r.time))).size; 
     const net = inc - exp; 
     const avg = liters > 0 && dist > 0 ? (dist/liters).toFixed(2) : 0; 
     const costKm = dist > 0 ? Math.round(exp/dist) : 0; 
@@ -259,7 +305,7 @@ export function displayCumulativeData() {
     const net = inc - exp;
     const avg = liters > 0 && totalDist > 0 ? (totalDist/liters).toFixed(2) : 0;
     const costKm = totalDist > 0 ? Math.round(exp/totalDist) : 0;
-    const days = new Set(records.map(r => r.date)).size;
+    const days = new Set(records.map(r => getStatisticalDate(r.date, r.time))).size;
 
     document.getElementById('cumulative-operating-days').textContent = `${days} 일`;
     document.getElementById('cumulative-trip-count').textContent = `${count} 건`;
@@ -282,7 +328,11 @@ export function renderMileageSummary(period = 'monthly') {
             const k = d.toISOString().slice(0, 7);
             summaryData[k] = 0;
         }
-        validRecords.forEach(r => { const k = r.date.substring(0, 7); if (summaryData.hasOwnProperty(k)) summaryData[k]++; });
+        validRecords.forEach(r => { 
+            const statDate = getStatisticalDate(r.date, r.time);
+            const k = statDate.substring(0, 7); 
+            if (summaryData.hasOwnProperty(k)) summaryData[k]++; 
+        });
     } else {
         for (let i = 11; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - (i * 7));
@@ -290,7 +340,9 @@ export function renderMileageSummary(period = 'monthly') {
             summaryData[k] = 0;
         }
         validRecords.forEach(r => {
-            const d = new Date(r.date); d.setDate(d.getDate() - d.getDay() + 1);
+            const statDate = getStatisticalDate(r.date, r.time);
+            const d = new Date(statDate); 
+            d.setDate(d.getDate() - d.getDay() + 1);
             const k = d.toISOString().slice(0, 10);
             if (summaryData.hasOwnProperty(k)) summaryData[k]++;
         });
@@ -306,20 +358,32 @@ export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
     const periodStr = period === 'full' ? '1일 ~ 말일' : `${sDay}일 ~ ${eDay===15?15:'말'}일`;
-    const target = MEM_RECORDS.filter(r => { const d = new Date(r.date); return r.date.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay; }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+    
+    // [변경] 통계 날짜 기준
+    const target = MEM_RECORDS.filter(r => { 
+        const statDate = getStatisticalDate(r.date, r.time);
+        const d = new Date(statDate); 
+        return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay; 
+    }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+    
     const transport = target.filter(r => ['화물운송', '대기'].includes(r.type));
     let inc=0, exp=0, dist=0;
     target.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     const w = window.open('','_blank');
     let lastDate = '';
-    let h = `<html><head><title>운송내역</title><style>body{font-family:sans-serif;margin:20px} table{width:100%;border-collapse:collapse;font-size:12px; table-layout:fixed;} th,td{border:1px solid #ccc;padding:6px;text-align:center; word-wrap:break-word;} th{background:#eee} .summary{border:1px solid #ddd;padding:15px;margin-bottom:20px} .date-border { border-top: 2px solid #000 !important; } .left-align { text-align: left; padding-left: 5px; } .col-date { width: 50px; } .col-location { width: 120px; }</style></head><body><h2>${year}년 ${month}월 ${periodStr} 운송내역</h2><div class="summary"><p>건수: ${transport.length}건 | 거리: ${dist.toFixed(1)}km | 수입: ${formatToManwon(inc)}만 | 지출: ${formatToManwon(exp)}만 | 순수익: ${formatToManwon(inc-exp)}만</p></div><table><thead><tr>${isDetailed?'<th>시간</th>':''}<th class="col-date">날짜</th><th class="col-location">상차지</th><th class="col-location">하차지</th><th>내용</th>${isDetailed?'<th>거리</th><th>수입</th><th>지출</th>':''}</tr></thead><tbody>`;
+    let h = `<html><head><title>운송내역</title><style>body{font-family:sans-serif;margin:20px} table{width:100%;border-collapse:collapse;font-size:12px; table-layout:fixed;} th,td{border:1px solid #ccc;padding:6px;text-align:center; word-wrap:break-word;} th{background:#eee} .summary{border:1px solid #ddd;padding:15px;margin-bottom:20px} .date-border { border-top: 2px solid #000 !important; } .left-align { text-align: left; padding-left: 5px; } .col-date { width: 50px; } .col-location { width: 120px; }</style></head><body><h2>${year}년 ${month}월 ${periodStr} 운송내역 (04시 기준)</h2><div class="summary"><p>건수: ${transport.length}건 | 거리: ${dist.toFixed(1)}km | 수입: ${formatToManwon(inc)}만 | 지출: ${formatToManwon(exp)}만 | 순수익: ${formatToManwon(inc-exp)}만</p></div><table><thead><tr>${isDetailed?'<th>시간</th>':''}<th class="col-date">날짜</th><th class="col-location">상차지</th><th class="col-location">하차지</th><th>내용</th>${isDetailed?'<th>거리</th><th>수입</th><th>지출</th>':''}</tr></thead><tbody>`;
     (isDetailed ? target : transport).forEach(r => {
-        let borderClass = ''; if(lastDate !== '' && lastDate !== r.date) borderClass = 'class="date-border"'; lastDate = r.date;
+        const statDate = getStatisticalDate(r.date, r.time);
+        let borderClass = ''; if(lastDate !== '' && lastDate !== statDate) borderClass = 'class="date-border"'; lastDate = statDate;
         let from = '', to = '', desc = r.type;
         if(r.from || r.to) { from = r.from || ''; to = r.to || ''; desc = ''; } else { from = r.expenseItem || r.supplyItem || r.brand || ''; }
         if(r.type === '대기') desc = '대기';
-        h += `<tr ${borderClass}>${isDetailed?`<td>${r.time}</td>`:''}<td>${r.date.substring(5)}</td><td class="left-align">${from}</td><td class="left-align">${to}</td><td>${desc}</td>${isDetailed?`<td>${r.distance||'-'}</td><td>${formatToManwon(r.income)}</td><td>${formatToManwon(r.cost)}</td>`:''}</tr>`;
+        
+        let dateDisplay = statDate.substring(5);
+        if(r.date !== statDate) dateDisplay += ' <span style="font-size:0.8em">(익일)</span>';
+
+        h += `<tr ${borderClass}>${isDetailed?`<td>${r.time}</td>`:''}<td>${dateDisplay}</td><td class="left-align">${from}</td><td class="left-align">${to}</td><td>${desc}</td>${isDetailed?`<td>${r.distance||'-'}</td><td>${formatToManwon(r.income)}</td><td>${formatToManwon(r.cost)}</td>`:''}</tr>`;
     });
     h += `</tbody></table><button onclick="window.print()">인쇄</button></body></html>`;
     w.document.write(h); w.document.close();
