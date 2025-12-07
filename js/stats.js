@@ -49,7 +49,7 @@ export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    // 1. 04시 기준으로 날짜 계산하여 필터링
+    // 04시 기준 날짜로 필터링
     const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
                                   .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
@@ -70,7 +70,6 @@ export function displayTodayRecords(date) {
         if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
         if(money === '') money = '0'; 
 
-        // [수정] 운행취소도 운송 카테고리로 묶어 상세 표시
         const isTransport = (r.type === '화물운송' || r.type === '대기' || r.type === '운행취소');
 
         if (isTransport) {
@@ -133,7 +132,6 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (중간 함수들 생략: displaySubsidyRecords, displayDailyRecords 등 기존 유지) ...
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
@@ -158,6 +156,7 @@ export function displaySubsidyRecords(append = false) {
     }
 }
 
+// [수정됨] 일별 조회: data-label 추가 및 운송기록 없는 날 숨김
 export function displayDailyRecords() {
     const year = document.getElementById('daily-year-select').value;
     const month = document.getElementById('daily-month-select').value;
@@ -180,19 +179,36 @@ export function displayDailyRecords() {
 
     Object.keys(recordsByDate).sort().reverse().forEach(date => {
         const dayData = recordsByDate[date];
-        const transport = dayData.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료'].includes(r.type));
+        const transport = dayData.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
+        
         dayData.records.forEach(r => {
             if(r.type !== '운행종료' && r.type !== '이동취소') { inc += (r.income||0); exp += (r.cost||0); }
             if(r.type === '화물운송') { dist += (r.distance||0); count++; }
         });
+
+        // [중요] 운송 기록(화물운송 건수)이 0건이면 표기하지 않음
+        if (count === 0) return;
+
         const tr = document.createElement('tr');
         if(date === getTodayString()) tr.style.fontWeight = 'bold';
-        tr.innerHTML = `<td>${parseInt(date.substring(8,10))}일</td><td><span class="income">${formatToManwon(inc)}</span></td><td><span class="cost">${formatToManwon(exp)}</span></td><td><strong>${formatToManwon(inc-exp)}</strong></td><td>${dist.toFixed(1)}</td><td>${count}</td><td>${calculateTotalDuration(transport)}</td><td><button class="edit-btn" onclick="window.viewDateDetails('${date}')">상세</button></td>`;
+        
+        // [중요] 모바일에서 텍스트가 보이도록 data-label 속성 추가
+        tr.innerHTML = `
+            <td data-label="일">${parseInt(date.substring(8,10))}일</td>
+            <td data-label="수입"><span class="income">${formatToManwon(inc)}</span></td>
+            <td data-label="지출"><span class="cost">${formatToManwon(exp)}</span></td>
+            <td data-label="정산"><strong>${formatToManwon(inc-exp)}</strong></td>
+            <td data-label="거리">${dist.toFixed(1)}</td>
+            <td data-label="이동">${count}</td>
+            <td data-label="소요">${calculateTotalDuration(transport)}</td>
+            <td data-label="관리"><button class="edit-btn" onclick="window.viewDateDetails('${date}')">상세</button></td>
+        `;
         dailyTbody.appendChild(tr);
     });
 }
 
+// [수정됨] 주별 조회: data-label 추가
 export function displayWeeklyRecords() {
     const year = document.getElementById('weekly-year-select').value;
     const month = document.getElementById('weekly-month-select').value;
@@ -216,16 +232,28 @@ export function displayWeeklyRecords() {
     
     Object.keys(weeks).forEach(w => {
         const data = weeks[w];
-        const transport = data.filter(r => ['화물운송', '공차이동', '대기', '운행종료'].includes(r.type));
+        const transport = data.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
         data.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=(r.income||0);exp+=(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
         const dates = data.map(r => new Date(getStatisticalDate(r.date, r.time)).getDate());
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${w}주차</td><td>${Math.min(...dates)}일~${Math.max(...dates)}일</td><td>${formatToManwon(inc)}</td><td>${formatToManwon(exp)}</td><td>${formatToManwon(inc-exp)}</td><td>${dist.toFixed(1)}</td><td>${count}</td><td>${calculateTotalDuration(transport)}</td>`;
+        
+        // data-label 추가
+        tr.innerHTML = `
+            <td data-label="주차">${w}주차</td>
+            <td data-label="기간">${Math.min(...dates)}일~${Math.max(...dates)}일</td>
+            <td data-label="수입">${formatToManwon(inc)}</td>
+            <td data-label="지출">${formatToManwon(exp)}</td>
+            <td data-label="정산">${formatToManwon(inc-exp)}</td>
+            <td data-label="거리">${dist.toFixed(1)}</td>
+            <td data-label="이동">${count}</td>
+            <td data-label="소요">${calculateTotalDuration(transport)}</td>
+        `;
         weeklyTbody.appendChild(tr);
     });
 }
 
+// [수정됨] 월별 조회: data-label 추가
 export function displayMonthlyRecords() {
     const year = document.getElementById('monthly-year-select').value;
     const monthlyTbody = document.querySelector('#monthly-summary-table tbody');
@@ -245,11 +273,21 @@ export function displayMonthlyRecords() {
     });
     Object.keys(months).sort().reverse().forEach(m => {
         const data = months[m];
-        const transport = data.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료'].includes(r.type));
+        const transport = data.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc=0,exp=0,dist=0,count=0;
          data.records.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=(r.income||0);exp+=(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${parseInt(m.substring(5))}월</td><td>${formatToManwon(inc)}</td><td>${formatToManwon(exp)}</td><td>${formatToManwon(inc-exp)}</td><td>${dist.toFixed(1)}</td><td>${count}</td><td>${calculateTotalDuration(transport)}</td>`;
+        
+        // data-label 추가
+        tr.innerHTML = `
+            <td data-label="월">${parseInt(m.substring(5))}월</td>
+            <td data-label="수입">${formatToManwon(inc)}</td>
+            <td data-label="지출">${formatToManwon(exp)}</td>
+            <td data-label="정산">${formatToManwon(inc-exp)}</td>
+            <td data-label="거리">${dist.toFixed(1)}</td>
+            <td data-label="이동">${count}</td>
+            <td data-label="소요">${calculateTotalDuration(transport)}</td>
+        `;
         monthlyTbody.appendChild(tr);
     });
 }
@@ -353,7 +391,6 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
-// [수정] 인쇄 화면도 '운행취소' 포함
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
