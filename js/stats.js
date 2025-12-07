@@ -45,7 +45,7 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
-// [수정됨] 주유/소모품/지출은 종료,소요,상차,하차 미표기
+// [수정됨] displayTodayRecords: 주유/소모품/지출은 colspan 사용하여 중간 컬럼 병합
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
@@ -60,21 +60,22 @@ export function displayTodayRecords(date) {
         const tr = document.createElement('tr');
         tr.onclick = () => editRecord(r.id);
 
+        let timeDisplay = r.time;
+        if(r.date !== date) { 
+            timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
+        }
+
+        let money = '';
+        if(r.income > 0) money += `<span class="income">+${formatToManwon(r.income)}</span> `;
+        if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
+        if(money === '') money = '0'; 
+
         const isTransport = (r.type === '화물운송' || r.type === '대기');
 
-        // 1. 비운송 항목(주유 등)은 빈 값으로 초기화
-        let endTime = '';
-        let duration = '';
-        let fromCell = '';
-        let toCell = '';
-        let noteCell = '';
-
-        // 2. 화물운송/대기인 경우에만 시간 및 장소 계산
         if (isTransport) {
-            endTime = '진행중';
-            duration = '-';
-            fromCell = '-';
-            toCell = '-';
+            // [화물운송/대기] 기존대로 모든 컬럼 표시
+            let endTime = '진행중';
+            let duration = '-';
 
             const idx = dayRecords.findIndex(item => item.id === r.id);
             if (idx > -1 && idx < dayRecords.length - 1) {
@@ -88,36 +89,34 @@ export function displayTodayRecords(date) {
 
             const fromVal = (r.from||'').replace(/"/g, '&quot;');
             const toVal = (r.to||'').replace(/"/g, '&quot;');
-            fromCell = `<span class="location-clickable" data-center="${fromVal}">${r.from || ''}</span>`;
-            toCell = `<span class="location-clickable" data-center="${toVal}">${r.to || ''}</span>`;
+            const fromCell = `<span class="location-clickable" data-center="${fromVal}">${r.from || ''}</span>`;
+            const toCell = `<span class="location-clickable" data-center="${toVal}">${r.to || ''}</span>`;
             
+            let noteCell = '';
             if(r.distance) noteCell = `<span class="note">${r.distance} km</span>`;
             if(r.type === '대기') noteCell = `<span class="note">대기중</span>`;
 
+            tr.innerHTML = `
+                <td data-label="시작">${timeDisplay}</td>
+                <td data-label="종료">${endTime}</td>
+                <td data-label="소요">${duration}</td>
+                <td data-label="상차">${fromCell}</td>
+                <td data-label="하차">${toCell}</td>
+                <td data-label="비고">${noteCell}</td>
+                <td data-label="금액">${money}</td>
+            `;
         } else {
-            // 주유/소모품/지출인 경우 내용만 표시
-            noteCell = `<strong>${r.type}</strong><br><span class="note">${r.expenseItem || r.supplyItem || r.brand || ''}</span>`;
+            // [주유/소모품/지출] 중간 5개 컬럼 병합 (Start | Content | Amount)
+            // 종료, 소요, 상차, 하차, 비고 -> 5칸 병합
+            const content = `<strong>${r.type}</strong> <span class="note" style="margin-left:5px;">${r.expenseItem || r.supplyItem || r.brand || ''}</span>`;
+            
+            tr.innerHTML = `
+                <td data-label="시작">${timeDisplay}</td>
+                <td colspan="5" data-label="내용" style="text-align: left; padding-left: 10px; color: #333;">${content}</td>
+                <td data-label="금액">${money}</td>
+            `;
         }
-
-        let money = '';
-        if(r.income > 0) money += `<span class="income">+${formatToManwon(r.income)}</span> `;
-        if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
-        if(money === '') money = '0'; 
-
-        let timeDisplay = r.time;
-        if(r.date !== date) { 
-            timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
-        }
-
-        tr.innerHTML = `
-            <td data-label="시작">${timeDisplay}</td>
-            <td data-label="종료">${endTime}</td>
-            <td data-label="소요">${duration}</td>
-            <td data-label="상차">${fromCell}</td>
-            <td data-label="하차">${toCell}</td>
-            <td data-label="비고">${noteCell}</td>
-            <td data-label="금액">${money}</td>
-        `;
+        
         todayTbody.appendChild(tr);
     });
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
