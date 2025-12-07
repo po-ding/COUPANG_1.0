@@ -1,9 +1,5 @@
-// js/utils.js
-
 export const getTodayString = () => {
     const d = new Date();
-    // 04시 이전이면 전날 날짜를 기본값으로 세팅하려면 아래 주석 해제 (선택사항)
-    // if(d.getHours() < 4) d.setDate(d.getDate() - 1);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -33,9 +29,8 @@ export function copyTextToClipboard(text, msg) {
     .catch(err => console.log('복사 실패:', err));
 }
 
-// [추가됨] 04시 기준 통계용 날짜 계산 함수
+// [핵심] 04시 기준 통계용 날짜 계산 함수
 export function getStatisticalDate(dateStr, timeStr) {
-    // 날짜나 시간이 없으면 그대로 반환
     if (!dateStr || !timeStr) return dateStr;
 
     const [hh, mm] = timeStr.split(':').map(Number);
@@ -52,6 +47,6 @@ export function getStatisticalDate(dateStr, timeStr) {
         return `${newY}-${newM}-${newD}`;
     }
     
-    // 04시 이후면 원래 날짜 그대로
+    // 04시 00분부터는 원래 날짜 그대로
     return dateStr;
 }
