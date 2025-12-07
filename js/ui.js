@@ -191,4 +191,35 @@ export function displayCenterList(filter='') {
         div.querySelector('.delete-btn').onclick = () => {
             if(!confirm('삭제?')) return;
             const idx = MEM_CENTERS.indexOf(c);
-            if(
+            if(idx>-1) MEM_CENTERS.splice(idx,1);
+            delete MEM_LOCATIONS[c];
+            saveData();
+            displayCenterList(document.getElementById('center-search-input').value);
+        };
+        els.centerListContainer.appendChild(div);
+    });
+}
+
+function handleCenterEdit(div, c) {
+    const l = MEM_LOCATIONS[c]||{};
+    div.innerHTML = `<div class="edit-form"><input class="edit-input" value="${c}"><input class="edit-address-input" value="${l.address||''}"><input class="edit-memo-input" value="${l.memo||''}"><div class="action-buttons"><button class="setting-save-btn">저장</button><button class="cancel-edit-btn">취소</button></div></div>`;
+    
+    div.querySelector('.setting-save-btn').onclick = () => {
+        const nn = div.querySelector('.edit-input').value.trim();
+        const na = div.querySelector('.edit-address-input').value.trim();
+        const nm = div.querySelector('.edit-memo-input').value.trim();
+        if(!nn) return;
+        if(nn!==c) {
+            const idx = MEM_CENTERS.indexOf(c);
+            if(idx>-1) MEM_CENTERS.splice(idx,1);
+            if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn);
+            delete MEM_LOCATIONS[c];
+            MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; });
+            saveData();
+        }
+        updateLocationData(nn, na, nm);
+        displayCenterList(document.getElementById('center-search-input').value);
+    };
+    div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
+}
+// [중요] 여기에 addEventListener가 있으면 안 됨. 모두 제거됨.
