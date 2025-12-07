@@ -45,31 +45,28 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
-// [수정됨] 04시 기준 + 주유/소모품/지출 칸 합치기(Colspan) 완벽 적용
+// [수정됨] 04시 기준 필터링 및 모바일 겹침 현상 해결
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    // 04시 기준 날짜로 필터링
+    // 1. 04시 기준으로 날짜 계산하여 필터링
     const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
                                   .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
     todayTbody.innerHTML = '';
-    
-    // 화면 표시용 필터 (운행종료 제외)
     const displayList = dayRecords.filter(r => r.type !== '운행종료');
 
     displayList.forEach(r => {
         const tr = document.createElement('tr');
         tr.onclick = () => editRecord(r.id);
 
-        // 시간 표시 (실제 날짜가 조회 날짜와 다르면 '익일' 표시)
         let timeDisplay = r.time;
+        // 통계 날짜와 실제 날짜가 다르면 '익일' 표시
         if(r.date !== date) { 
             timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
         }
 
-        // 금액 표시
         let money = '';
         if(r.income > 0) money += `<span class="income">+${formatToManwon(r.income)}</span> `;
         if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
@@ -78,7 +75,7 @@ export function displayTodayRecords(date) {
         const isTransport = (r.type === '화물운송' || r.type === '대기');
 
         if (isTransport) {
-            // [화물운송/대기] -> 모든 칸 상세 표시
+            // [화물운송/대기] - 전체 컬럼 표시
             let endTime = '진행중';
             let duration = '-';
 
@@ -111,14 +108,15 @@ export function displayTodayRecords(date) {
                 <td data-label="금액">${money}</td>
             `;
         } else {
-            // [주유/소모품/지출] -> 칸 합치기 (Colspan=5)
+            // [주유/소모품/지출] - 겹침 방지 처리
+            // data-label을 비워 모바일에서 '내용' 글자가 뜨지 않게 함 (공간 확보)
             const detail = r.expenseItem || r.supplyItem || r.brand || '';
-            const content = `<span style="font-weight:bold; color:#555;">[${r.type}]</span> ${detail}`;
+            const content = `<span style="font-weight:bold; color:#555;">[${r.type}]</span>&nbsp;&nbsp;${detail}`;
             
-            // 종료, 소요, 상차, 하차, 비고 -> 5개 셀을 하나로 병합
+            // 인라인 스타일 제거 -> CSS에 따름 (PC: Left/Center, Mobile: Right aligned with padding)
             tr.innerHTML = `
                 <td data-label="시작">${timeDisplay}</td>
-                <td colspan="5" data-label="내용" style="text-align:left; padding-left:10px;">${content}</td>
+                <td colspan="5" data-label="" style="color:#333;">${content}</td>
                 <td data-label="금액">${money}</td>
             `;
         }
@@ -128,7 +126,7 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (displaySubsidyRecords, displayDailyRecords 등 나머지 함수는 기존과 동일하게 유지 - stats.js의 아래 부분은 변경 없음)
+// ... (이하 나머지 함수들 기존과 동일) ...
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
