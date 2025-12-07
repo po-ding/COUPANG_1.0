@@ -12,6 +12,7 @@
         <div class="page-nav">
             <h1 class="logo">cargo<span class="logo-point">note</span></h1>
             <div class="nav-buttons">
+                <!-- type="button" 명시 -->
                 <button type="button" id="refresh-btn">🔄</button>
                 <button type="button" id="back-to-main-btn" class="hidden">←</button>
                 <button type="button" id="go-to-settings-btn">⚙️</button>
@@ -23,7 +24,8 @@
         </div>
 
         <div id="main-page">
-            <form id="record-form">
+            <!-- [중요] onsubmit="return false;" 추가하여 엔터키나 클릭 시 새로고침 방지 -->
+            <form id="record-form" onsubmit="return false;">
                 <fieldset id="datetime-info-fieldset">
                     <legend>기록 일시</legend>
                     <div class="input-group row">
