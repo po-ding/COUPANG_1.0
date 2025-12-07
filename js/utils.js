@@ -29,24 +29,31 @@ export function copyTextToClipboard(text, msg) {
     .catch(err => console.log('복사 실패:', err));
 }
 
-// [핵심] 04시 기준 통계용 날짜 계산 함수
+// [강화된 로직] 04시 기준 날짜 계산
 export function getStatisticalDate(dateStr, timeStr) {
     if (!dateStr || !timeStr) return dateStr;
 
-    const [hh, mm] = timeStr.split(':').map(Number);
+    // 시간을 10진수 숫자로 확실하게 변환
+    const hh = parseInt(timeStr.split(':')[0], 10);
     
-    // 04시 미만(00:00 ~ 03:59)인 경우 전날로 취급
+    // 04시 미만(0, 1, 2, 3시)인 경우 전날로 계산
     if (hh < 4) {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dateObj = new Date(y, m - 1, d);
+        const parts = dateStr.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1; // 월은 0부터 시작하므로 -1
+        const d = parseInt(parts[2], 10);
+        
+        // 정오(12시) 기준으로 설정하여 날짜 변경 시 시차 문제 원천 차단
+        const dateObj = new Date(y, m, d, 12, 0, 0);
         dateObj.setDate(dateObj.getDate() - 1); // 하루 뺌
         
         const newY = dateObj.getFullYear();
         const newM = String(dateObj.getMonth() + 1).padStart(2, '0');
         const newD = String(dateObj.getDate()).padStart(2, '0');
+        
         return `${newY}-${newM}-${newD}`;
     }
     
-    // 04시 00분부터는 원래 날짜 그대로
+    // 04시 00분부터는 원래 날짜 그대로 사용
     return dateStr;
 }
