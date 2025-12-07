@@ -49,7 +49,7 @@ export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    // 04시 기준 날짜로 필터링
+    // 1. 04시 기준으로 날짜 계산하여 필터링
     const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
                                   .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
@@ -156,7 +156,6 @@ export function displaySubsidyRecords(append = false) {
     }
 }
 
-// [수정됨] 일별 조회: data-label 추가 및 운송기록 없는 날 숨김
 export function displayDailyRecords() {
     const year = document.getElementById('daily-year-select').value;
     const month = document.getElementById('daily-month-select').value;
@@ -181,19 +180,16 @@ export function displayDailyRecords() {
         const dayData = recordsByDate[date];
         const transport = dayData.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
-        
         dayData.records.forEach(r => {
             if(r.type !== '운행종료' && r.type !== '이동취소') { inc += (r.income||0); exp += (r.cost||0); }
             if(r.type === '화물운송') { dist += (r.distance||0); count++; }
         });
 
-        // [중요] 운송 기록(화물운송 건수)이 0건이면 표기하지 않음
         if (count === 0) return;
 
         const tr = document.createElement('tr');
         if(date === getTodayString()) tr.style.fontWeight = 'bold';
         
-        // [중요] 모바일에서 텍스트가 보이도록 data-label 속성 추가
         tr.innerHTML = `
             <td data-label="일">${parseInt(date.substring(8,10))}일</td>
             <td data-label="수입"><span class="income">${formatToManwon(inc)}</span></td>
@@ -208,7 +204,6 @@ export function displayDailyRecords() {
     });
 }
 
-// [수정됨] 주별 조회: data-label 추가
 export function displayWeeklyRecords() {
     const year = document.getElementById('weekly-year-select').value;
     const month = document.getElementById('weekly-month-select').value;
@@ -238,7 +233,6 @@ export function displayWeeklyRecords() {
         const dates = data.map(r => new Date(getStatisticalDate(r.date, r.time)).getDate());
         const tr = document.createElement('tr');
         
-        // data-label 추가
         tr.innerHTML = `
             <td data-label="주차">${w}주차</td>
             <td data-label="기간">${Math.min(...dates)}일~${Math.max(...dates)}일</td>
@@ -253,7 +247,6 @@ export function displayWeeklyRecords() {
     });
 }
 
-// [수정됨] 월별 조회: data-label 추가
 export function displayMonthlyRecords() {
     const year = document.getElementById('monthly-year-select').value;
     const monthlyTbody = document.querySelector('#monthly-summary-table tbody');
@@ -278,7 +271,6 @@ export function displayMonthlyRecords() {
          data.records.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=(r.income||0);exp+=(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
         const tr = document.createElement('tr');
         
-        // data-label 추가
         tr.innerHTML = `
             <td data-label="월">${parseInt(m.substring(5))}월</td>
             <td data-label="수입">${formatToManwon(inc)}</td>

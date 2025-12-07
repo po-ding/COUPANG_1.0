@@ -82,7 +82,7 @@ function moveDate(offset) {
 // 이벤트 리스너 연결
 // ============================================
 
-// [수정] 1. 운행 취소 (기존 대기 버튼 대체)
+// 1. 운행 취소 (기존 대기 버튼 대체)
 UI.els.btnTripCancel.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
     // type: '운행취소'로 저장

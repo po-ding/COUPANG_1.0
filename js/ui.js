@@ -30,9 +30,8 @@ export const els = {
     generalActions: document.getElementById('general-actions'),
     editActions: document.getElementById('edit-actions'),
     
-    // [수정] btnWaiting 제거, btnTripCancel 추가
+    // 버튼
     btnTripCancel: document.getElementById('btn-trip-cancel'),
-    
     btnStartTrip: document.getElementById('btn-start-trip'),
     btnEndTrip: document.getElementById('btn-end-trip'),
     btnSaveGeneral: document.getElementById('btn-save-general'),
@@ -40,6 +39,7 @@ export const els = {
     btnUpdateRecord: document.getElementById('btn-update-record'),
     btnDeleteRecord: document.getElementById('btn-delete-record'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
+    
     editModeIndicator: document.getElementById('edit-mode-indicator'),
     editIdInput: document.getElementById('edit-id'),
     centerManagementBody: document.getElementById('center-management-body'),
@@ -52,7 +52,6 @@ export function toggleUI() {
 
     [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
     
-    // [수정] 대기 조건에 '운행취소'는 UI 토글 시 '화물운송'과 묶어서 처리
     if (type === '화물운송' || type === '대기') {
         els.transportDetails.classList.remove('hidden');
         els.costInfoFieldset.classList.remove('hidden');
@@ -60,7 +59,6 @@ export function toggleUI() {
         els.incomeWrapper.classList.remove('hidden');
         if (!isEditMode) {
             els.tripActions.classList.remove('hidden');
-            // '운행취소' 버튼은 화물운송 탭에서 보임
             if(type === '화물운송') els.btnTripCancel.classList.remove('hidden');
         }
     } else {
@@ -188,6 +186,7 @@ export function displayCenterList(filter='') {
         div.className='center-item';
         div.innerHTML=`<div class="info"><span class="center-name">${c}</span><div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div></div>${l.address?`<span class="note">주소: ${l.address}</span>`:''}`;
         
+        // 간단한 이벤트 연결 (UI용)
         div.querySelector('.edit-btn').onclick = () => handleCenterEdit(div,c);
         div.querySelector('.delete-btn').onclick = () => {
             if(!confirm('삭제?')) return;
