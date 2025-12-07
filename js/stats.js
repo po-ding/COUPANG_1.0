@@ -1,5 +1,5 @@
 import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
-import { MEM_RECORDS } from './data.js';
+import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
 import { editRecord } from './ui.js';
 
 const SUBSIDY_PAGE_SIZE = 10;
@@ -327,7 +327,7 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
-// [수정됨] generatePrintView에 근무일(workDays) 계산 및 출력 로직 추가
+// [수정됨] 근무일 계산 기준 변경: type이 '화물운송'인 경우만 날짜 카운트
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
@@ -344,12 +344,14 @@ export function generatePrintView(year, month, period, isDetailed) {
     target.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     
-    // [추가됨] 근무일 계산 (Set을 이용한 중복 제거)
-    const workDays = new Set(target.map(r => getStatisticalDate(r.date, r.time))).size;
+    // [핵심 변경] 근무일: 전체 기록이 아닌 '화물운송' 기록만 필터링하여 날짜 중복 제거
+    const workDays = new Set(
+        target.filter(r => r.type === '화물운송')
+              .map(r => getStatisticalDate(r.date, r.time))
+    ).size;
 
     const w = window.open('','_blank');
     let lastDate = '';
-    // [수정됨] HTML 요약 부분에 근무일 추가
     let h = `<html><head><title>운송내역</title><style>body{font-family:sans-serif;margin:20px} table{width:100%;border-collapse:collapse;font-size:12px; table-layout:fixed;} th,td{border:1px solid #ccc;padding:6px;text-align:center; word-wrap:break-word;} th{background:#eee} .summary{border:1px solid #ddd;padding:15px;margin-bottom:20px} .date-border { border-top: 2px solid #000 !important; } .left-align { text-align: left; padding-left: 5px; } .col-date { width: 50px; } .col-location { width: 120px; }</style></head><body><h2>${year}년 ${month}월 ${periodStr} 운송내역 (04시 기준)</h2><div class="summary"><p>근무일: ${workDays}일 | 건수: ${transport.length}건 | 거리: ${dist.toFixed(1)}km | 수입: ${formatToManwon(inc)}만 | 지출: ${formatToManwon(exp)}만 | 순수익: ${formatToManwon(inc-exp)}만</p></div><table><thead><tr>${isDetailed?'<th>시간</th>':''}<th class="col-date">날짜</th><th class="col-location">상차지</th><th class="col-location">하차지</th><th>내용</th>${isDetailed?'<th>거리</th><th>수입</th><th>지출</th>':''}</tr></thead><tbody>`;
     (isDetailed ? target : transport).forEach(r => {
         const statDate = getStatisticalDate(r.date, r.time);
