@@ -1,5 +1,5 @@
 import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
-import { MEM_RECORDS } from './data.js'; // 전체 기록 참조
+import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
 import { editRecord } from './ui.js';
 
 const SUBSIDY_PAGE_SIZE = 10;
@@ -45,12 +45,11 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
-// [핵심 수정] 날짜가 지난 기록도 '진행중'이 아니라 정확한 종료 시간 표시
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    // 1. 선택된 날짜(04시 기준)에 해당하는 기록만 필터링 (화면 표시용)
+    // 1. 04시 기준으로 날짜 계산하여 필터링
     const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
                                   .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
@@ -62,7 +61,6 @@ export function displayTodayRecords(date) {
         tr.onclick = () => editRecord(r.id);
 
         let timeDisplay = r.time;
-        // 실제 날짜와 조회 날짜가 다르면 '익일' 등 표시
         if(r.date !== date) { 
             timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
         }
@@ -72,28 +70,23 @@ export function displayTodayRecords(date) {
         if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
         if(money === '') money = '0'; 
 
-        const isTransport = (r.type === '화물운송' || r.type === '대기');
+        // [수정] 운행취소도 운송 카테고리로 묶어 상세 표시
+        const isTransport = (r.type === '화물운송' || r.type === '대기' || r.type === '운행취소');
 
         if (isTransport) {
             let endTime = '진행중';
             let duration = '-';
 
-            // [중요 변경] 로컬 변수(dayRecords)가 아닌 '전체 데이터(MEM_RECORDS)'에서 다음 기록을 찾음
-            // 그래야 날짜가 바뀐 '운행종료' 기록도 찾아낼 수 있음.
-            const globalIndex = MEM_RECORDS.findIndex(item => item.id === r.id);
-            
-            if (globalIndex > -1 && globalIndex < MEM_RECORDS.length - 1) {
-                const next = MEM_RECORDS[globalIndex + 1];
-                
-                // 종료 시간 표시 (날짜가 다르면 날짜도 함께 표시)
+            const idx = MEM_RECORDS.findIndex(item => item.id === r.id);
+            if (idx > -1 && idx < MEM_RECORDS.length - 1) {
+                const next = MEM_RECORDS[idx + 1];
                 if (next.date !== r.date) {
-                    const monthDay = next.date.substring(5); // MM-DD
+                    const monthDay = next.date.substring(5);
                     endTime = `<span style="font-size:0.8em; color:#888;">(${monthDay})</span><br>${next.time}`;
                 } else {
                     endTime = next.time;
                 }
 
-                // 소요 시간 계산
                 const startObj = new Date(`${r.date}T${r.time}`);
                 const endObj = new Date(`${next.date}T${next.time}`);
                 const diff = endObj - startObj;
@@ -113,6 +106,7 @@ export function displayTodayRecords(date) {
             let noteCell = '';
             if(r.distance) noteCell = `<span class="note">${r.distance} km</span>`;
             if(r.type === '대기') noteCell = `<span class="note">대기중</span>`;
+            if(r.type === '운행취소') noteCell = `<span class="note cancelled">취소됨</span>`;
 
             tr.innerHTML = `
                 <td data-label="시작">${timeDisplay}</td>
@@ -124,7 +118,6 @@ export function displayTodayRecords(date) {
                 <td data-label="금액">${money}</td>
             `;
         } else {
-            // [주유/소모품/지출] 겹침 방지 (colspan 사용 + data-label 제거)
             const detail = r.expenseItem || r.supplyItem || r.brand || '';
             const content = `<span style="font-weight:bold; color:#555;">[${r.type}]</span>&nbsp;&nbsp;${detail}`;
             
@@ -140,7 +133,7 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (이하 나머지 코드는 기존과 동일) ...
+// ... (중간 함수들 생략: displaySubsidyRecords, displayDailyRecords 등 기존 유지) ...
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
@@ -360,6 +353,7 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
+// [수정] 인쇄 화면도 '운행취소' 포함
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
@@ -371,7 +365,7 @@ export function generatePrintView(year, month, period, isDetailed) {
         return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay; 
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
-    const transport = target.filter(r => ['화물운송', '대기'].includes(r.type));
+    const transport = target.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     let inc=0, exp=0, dist=0;
     target.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
@@ -390,6 +384,7 @@ export function generatePrintView(year, month, period, isDetailed) {
         let from = '', to = '', desc = r.type;
         if(r.from || r.to) { from = r.from || ''; to = r.to || ''; desc = ''; } else { from = r.expenseItem || r.supplyItem || r.brand || ''; }
         if(r.type === '대기') desc = '대기';
+        if(r.type === '운행취소') desc = '취소';
         
         let dateDisplay = statDate.substring(5);
         if(r.date !== statDate) dateDisplay += ' <span style="font-size:0.8em">(익일)</span>';

@@ -41,7 +41,6 @@ function initialSetup() {
     document.getElementById('mileage-correction').value = localStorage.getItem('mileage_correction') || 0;
     document.getElementById('subsidy-limit').value = localStorage.getItem('fuel_subsidy_limit') || 0;
     
-    // 초기 화면 날짜 설정 (04시 기준 오늘)
     const todayStr = Utils.getTodayString();
     const nowTime = Utils.getCurrentTimeString();
     const statToday = Utils.getStatisticalDate(todayStr, nowTime);
@@ -52,9 +51,7 @@ function initialSetup() {
     updateAllDisplays();
 }
 
-// 전체 화면 갱신 헬퍼
 function updateAllDisplays() {
-    // 현재 선택된 날짜 기준으로 조회
     const picker = document.getElementById('today-date-picker');
     const targetDate = picker.value || Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
     
@@ -64,7 +61,6 @@ function updateAllDisplays() {
     Stats.displayMonthlyRecords();
 }
 
-// 날짜 이동 헬퍼
 function moveDate(offset) {
     const picker = document.getElementById('today-date-picker');
     if (!picker.value) picker.value = Utils.getTodayString();
@@ -86,14 +82,14 @@ function moveDate(offset) {
 // 이벤트 리스너 연결
 // ============================================
 
-// 1. 운행 대기
-UI.els.btnWaiting.addEventListener('click', () => {
+// [수정] 1. 운행 취소 (기존 대기 버튼 대체)
+UI.els.btnTripCancel.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
-    Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData, type: '대기' });
+    // type: '운행취소'로 저장
+    Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData, type: '운행취소' });
     Utils.showToast('저장되었습니다.');
     UI.resetForm();
     
-    // 대기 기록은 현재 날짜에 저장되므로 화면도 현재로 이동
     const nowStatDate = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
     document.getElementById('today-date-picker').value = nowStatDate;
     updateAllDisplays();
@@ -111,7 +107,7 @@ UI.els.btnStartTrip.addEventListener('click', () => {
     updateAllDisplays();
 });
 
-// 3. 운행 종료 (메인 화면)
+// 3. 운행 종료
 UI.els.btnEndTrip.addEventListener('click', () => {
     Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), type: '운행종료', distance: 0, cost: 0, income: 0 });
     Utils.showToast('운행 종료되었습니다.');
@@ -122,14 +118,12 @@ UI.els.btnEndTrip.addEventListener('click', () => {
     updateAllDisplays();
 });
 
-// 4. 일반 저장 (과거 기록 입력 등)
+// 4. 일반 저장
 UI.els.btnSaveGeneral.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
-    // 사용자가 입력한 날짜/시간 그대로 저장
     Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...formData });
     Utils.showToast('저장되었습니다.');
     
-    // 저장한 날짜의 통계 화면으로 이동
     const statDate = Utils.getStatisticalDate(UI.els.dateInput.value, UI.els.timeInput.value);
     document.getElementById('today-date-picker').value = statDate;
     
@@ -145,19 +139,16 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
         const original = Data.MEM_RECORDS[index];
         const formData = UI.getFormDataWithoutTime();
         
-        // 화물운송일 경우 자동완성 데이터 업데이트
         if (formData.type === '화물운송' && formData.from && formData.to) {
             const key = `${formData.from}-${formData.to}`;
             if(formData.distance > 0) Data.MEM_DISTANCES[key] = formData.distance;
             if(formData.income > 0) Data.MEM_FARES[key] = formData.income;
         }
         
-        // 날짜와 시간은 원본 유지 (내용만 수정)
         Data.MEM_RECORDS[index] = { ...original, ...formData, date: original.date, time: original.time };
         Data.saveData();
         Utils.showToast('수정 완료.');
         
-        // 수정된 기록이 있는 날짜 화면 유지
         const statDate = Utils.getStatisticalDate(original.date, original.time);
         document.getElementById('today-date-picker').value = statDate;
         
@@ -166,22 +157,19 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
     }
 });
 
-// 6. [중요] 현재 시간으로 운행 종료 (수정 모드에서)
+// 6. 현재 시간으로 운행 종료 (수정 모드)
 UI.els.btnEditEndTrip.addEventListener('click', () => {
     const nowTime = Utils.getCurrentTimeString();
     const nowDate = Utils.getTodayString();
     
-    // 수정 중이던 기록의 ID 확인
     const id = parseInt(UI.els.editIdInput.value);
     const index = Data.MEM_RECORDS.findIndex(r => r.id === id);
 
     if (index > -1 && Data.MEM_RECORDS[index].type === '운행종료') {
-        // 이미 '운행종료' 기록을 클릭해서 들어온 경우 -> 시간만 업데이트
         Data.MEM_RECORDS[index].date = nowDate;
         Data.MEM_RECORDS[index].time = nowTime;
         Utils.showToast('종료 시간이 현재로 업데이트됨.');
     } else {
-        // '대기'나 다른 기록을 보다가 종료를 누른 경우 -> 새로운 종료 기록 추가
         Data.addRecord({ 
             id: Date.now(), 
             date: nowDate, 
@@ -194,16 +182,12 @@ UI.els.btnEditEndTrip.addEventListener('click', () => {
         Utils.showToast('운행 종료되었습니다.');
     }
     
-    // 데이터 저장
     Data.saveData();
-    // 폼 초기화 (수정모드 해제)
     UI.resetForm();
 
-    // [핵심] 종료 기록이 생성된 "현재 시점"의 통계 날짜로 화면 이동
     const statDate = Utils.getStatisticalDate(nowDate, nowTime);
     document.getElementById('today-date-picker').value = statDate;
     
-    // 화면 갱신
     updateAllDisplays();
 });
 
@@ -211,7 +195,6 @@ UI.els.btnEditEndTrip.addEventListener('click', () => {
 UI.els.btnDeleteRecord.addEventListener('click', () => {
     if(confirm('삭제하시겠습니까?')) {
         const id = parseInt(UI.els.editIdInput.value);
-        // 삭제 후에도 현재 보고 있던 날짜 유지하기 위해 날짜 계산
         const target = Data.MEM_RECORDS.find(r => r.id === id);
         let stayDate = document.getElementById('today-date-picker').value;
         if(target) {
@@ -228,10 +211,6 @@ UI.els.btnDeleteRecord.addEventListener('click', () => {
 
 UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
 
-// ============================================
-// 기타 UI 이벤트
-// ============================================
-
 // 상하차지 입력 시 자동완성 및 주소표시
 [UI.els.fromCenterInput, UI.els.toCenterInput].forEach(input => {
     input.addEventListener('input', () => {
@@ -247,7 +226,6 @@ UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
     });
 });
 
-// 주소 복사
 UI.els.addressDisplay.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
     if(e.target.classList.contains('address-clickable')) {
@@ -255,22 +233,15 @@ UI.els.addressDisplay.addEventListener('click', (e) => {
     }
 });
 
-// 주유비 계산
 UI.els.fuelUnitPriceInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.fuelLitersInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
-
-// 기록 종류 변경 시 UI 토글
 UI.els.typeSelect.addEventListener('change', UI.toggleUI);
-
-// 새로고침 버튼
 document.getElementById('refresh-btn').addEventListener('click', () => { UI.resetForm(); location.reload(); });
 
-// 날짜 선택 및 이동
 document.getElementById('today-date-picker').addEventListener('change', () => Stats.displayTodayRecords(document.getElementById('today-date-picker').value));
 document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
 document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
 
-// 리스트 클릭 위임 (주소 복사 등)
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
     const target = e.target.closest('.location-clickable');
     if(target) {
@@ -284,7 +255,6 @@ document.querySelector('#today-records-table tbody').addEventListener('click', (
     }
 });
 
-// 탭 버튼 처리
 document.querySelectorAll('.tab-btn').forEach(btn => { 
     btn.addEventListener("click", event => { 
         if(btn.parentElement.classList.contains('view-tabs')) { 
@@ -298,7 +268,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     }) 
 });
 
-// 설정 페이지 전환
 const mainPage = document.getElementById('main-page');
 const settingsPage = document.getElementById('settings-page');
 const goToSettingsBtn = document.getElementById('go-to-settings-btn');
@@ -320,7 +289,6 @@ backToMainBtn.addEventListener("click", () => {
     updateAllDisplays(); 
 });
 
-// 아코디언 메뉴 토글
 [document.getElementById('toggle-center-management'), document.getElementById('toggle-batch-apply'), 
  document.getElementById('toggle-subsidy-management'), document.getElementById('toggle-mileage-management'), 
  document.getElementById('toggle-data-management'), document.getElementById('toggle-print-management')]
@@ -338,7 +306,6 @@ backToMainBtn.addEventListener("click", () => {
     }); 
 });
 
-// 관리 기능 연결
 document.getElementById('center-search-input').addEventListener('input', () => UI.displayCenterList(document.getElementById('center-search-input').value));
 document.getElementById('add-center-btn').addEventListener('click', () => { 
     const n = document.getElementById('new-center-name').value.trim(); 

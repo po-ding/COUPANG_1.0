@@ -29,7 +29,10 @@ export const els = {
     tripActions: document.getElementById('trip-actions'),
     generalActions: document.getElementById('general-actions'),
     editActions: document.getElementById('edit-actions'),
-    btnWaiting: document.getElementById('btn-waiting'),
+    
+    // [수정] btnWaiting 제거, btnTripCancel 추가
+    btnTripCancel: document.getElementById('btn-trip-cancel'),
+    
     btnStartTrip: document.getElementById('btn-start-trip'),
     btnEndTrip: document.getElementById('btn-end-trip'),
     btnSaveGeneral: document.getElementById('btn-save-general'),
@@ -49,6 +52,7 @@ export function toggleUI() {
 
     [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
     
+    // [수정] 대기 조건에 '운행취소'는 UI 토글 시 '화물운송'과 묶어서 처리
     if (type === '화물운송' || type === '대기') {
         els.transportDetails.classList.remove('hidden');
         els.costInfoFieldset.classList.remove('hidden');
@@ -56,7 +60,8 @@ export function toggleUI() {
         els.incomeWrapper.classList.remove('hidden');
         if (!isEditMode) {
             els.tripActions.classList.remove('hidden');
-            if(type === '화물운송') els.btnWaiting.classList.remove('hidden');
+            // '운행취소' 버튼은 화물운송 탭에서 보임
+            if(type === '화물운송') els.btnTripCancel.classList.remove('hidden');
         }
     } else {
         els.costInfoFieldset.classList.remove('hidden');
@@ -136,7 +141,6 @@ export function resetForm() {
     els.editIdInput.value = '';
     els.editModeIndicator.classList.add('hidden');
     
-    // 날짜/시간 자동 설정
     els.dateInput.value = getTodayString();
     els.timeInput.value = getCurrentTimeString();
     
@@ -171,7 +175,6 @@ export function editRecord(id) {
     window.scrollTo(0,0);
 }
 
-// 지역 목록 관리용 UI 함수
 export function displayCenterList(filter='') {
     els.centerListContainer.innerHTML = "";
     const list = MEM_CENTERS.filter(c => c.includes(filter));
