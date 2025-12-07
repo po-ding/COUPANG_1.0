@@ -1,5 +1,5 @@
 import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
-import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
+import { MEM_RECORDS } from './data.js'; // 전체 기록 참조
 import { editRecord } from './ui.js';
 
 const SUBSIDY_PAGE_SIZE = 10;
@@ -45,12 +45,12 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
-// [수정됨] 04시 기준 필터링 및 모바일 겹침 현상 해결
+// [핵심 수정] 날짜가 지난 기록도 '진행중'이 아니라 정확한 종료 시간 표시
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
     
-    // 1. 04시 기준으로 날짜 계산하여 필터링
+    // 1. 선택된 날짜(04시 기준)에 해당하는 기록만 필터링 (화면 표시용)
     const dayRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time) === date)
                                   .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     
@@ -62,7 +62,7 @@ export function displayTodayRecords(date) {
         tr.onclick = () => editRecord(r.id);
 
         let timeDisplay = r.time;
-        // 통계 날짜와 실제 날짜가 다르면 '익일' 표시
+        // 실제 날짜와 조회 날짜가 다르면 '익일' 등 표시
         if(r.date !== date) { 
             timeDisplay = `<span style="font-size:0.8em; color:#888;">(익일)</span> ${r.time}`;
         }
@@ -75,18 +75,34 @@ export function displayTodayRecords(date) {
         const isTransport = (r.type === '화물운송' || r.type === '대기');
 
         if (isTransport) {
-            // [화물운송/대기] - 전체 컬럼 표시
             let endTime = '진행중';
             let duration = '-';
 
-            const idx = dayRecords.findIndex(item => item.id === r.id);
-            if (idx > -1 && idx < dayRecords.length - 1) {
-                const next = dayRecords[idx+1];
-                endTime = next.time;
-                const diff = new Date(`2000-01-01T${next.time}`) - new Date(`2000-01-01T${r.time}`);
-                const h = Math.floor(Math.abs(diff)/3600000);
-                const m = Math.floor((Math.abs(diff)%3600000)/60000);
-                duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            // [중요 변경] 로컬 변수(dayRecords)가 아닌 '전체 데이터(MEM_RECORDS)'에서 다음 기록을 찾음
+            // 그래야 날짜가 바뀐 '운행종료' 기록도 찾아낼 수 있음.
+            const globalIndex = MEM_RECORDS.findIndex(item => item.id === r.id);
+            
+            if (globalIndex > -1 && globalIndex < MEM_RECORDS.length - 1) {
+                const next = MEM_RECORDS[globalIndex + 1];
+                
+                // 종료 시간 표시 (날짜가 다르면 날짜도 함께 표시)
+                if (next.date !== r.date) {
+                    const monthDay = next.date.substring(5); // MM-DD
+                    endTime = `<span style="font-size:0.8em; color:#888;">(${monthDay})</span><br>${next.time}`;
+                } else {
+                    endTime = next.time;
+                }
+
+                // 소요 시간 계산
+                const startObj = new Date(`${r.date}T${r.time}`);
+                const endObj = new Date(`${next.date}T${next.time}`);
+                const diff = endObj - startObj;
+                
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                }
             }
 
             const fromVal = (r.from||'').replace(/"/g, '&quot;');
@@ -108,12 +124,10 @@ export function displayTodayRecords(date) {
                 <td data-label="금액">${money}</td>
             `;
         } else {
-            // [주유/소모품/지출] - 겹침 방지 처리
-            // data-label을 비워 모바일에서 '내용' 글자가 뜨지 않게 함 (공간 확보)
+            // [주유/소모품/지출] 겹침 방지 (colspan 사용 + data-label 제거)
             const detail = r.expenseItem || r.supplyItem || r.brand || '';
             const content = `<span style="font-weight:bold; color:#555;">[${r.type}]</span>&nbsp;&nbsp;${detail}`;
             
-            // 인라인 스타일 제거 -> CSS에 따름 (PC: Left/Center, Mobile: Right aligned with padding)
             tr.innerHTML = `
                 <td data-label="시작">${timeDisplay}</td>
                 <td colspan="5" data-label="" style="color:#333;">${content}</td>
@@ -126,7 +140,7 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (이하 나머지 함수들 기존과 동일) ...
+// ... (이하 나머지 코드는 기존과 동일) ...
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
