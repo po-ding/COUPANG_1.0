@@ -82,10 +82,9 @@ function moveDate(offset) {
 // 이벤트 리스너 연결
 // ============================================
 
-// 1. 운행 취소 (기존 대기 버튼 대체)
+// 1. 운행 취소
 UI.els.btnTripCancel.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
-    // type: '운행취소'로 저장
     Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData, type: '운행취소' });
     Utils.showToast('저장되었습니다.');
     UI.resetForm();
@@ -211,6 +210,18 @@ UI.els.btnDeleteRecord.addEventListener('click', () => {
 
 UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
 
+// [중요] 수정 화면에서 주소 복사 시 새로고침 방지 (강력한 차단)
+UI.els.addressDisplay.addEventListener('click', (e) => {
+    e.preventDefault(); 
+    e.stopPropagation();
+    e.stopImmediatePropagation(); // 다른 이벤트 실행 방지
+    
+    if(e.target.classList.contains('address-clickable')) {
+        Utils.copyTextToClipboard(e.target.dataset.address, '주소 복사됨');
+    }
+    return false;
+});
+
 // 상하차지 입력 시 자동완성 및 주소표시
 [UI.els.fromCenterInput, UI.els.toCenterInput].forEach(input => {
     input.addEventListener('input', () => {
@@ -226,15 +237,6 @@ UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
     });
 });
 
-// [수정] 주소 복사 시 새로고침 방지 (preventDefault 추가)
-UI.els.addressDisplay.addEventListener('click', (e) => {
-    e.preventDefault(); 
-    e.stopPropagation();
-    if(e.target.classList.contains('address-clickable')) {
-        Utils.copyTextToClipboard(e.target.dataset.address, '주소 복사됨');
-    }
-});
-
 UI.els.fuelUnitPriceInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.fuelLitersInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.typeSelect.addEventListener('change', UI.toggleUI);
@@ -244,18 +246,21 @@ document.getElementById('today-date-picker').addEventListener('change', () => St
 document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
 document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
 
-// [수정] 리스트에서 주소 복사 시 새로고침 방지
+// [중요] 리스트에서 주소 복사 시 새로고침 방지
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
     const target = e.target.closest('.location-clickable');
     if(target) {
-        e.preventDefault(); // 필수
+        e.preventDefault(); 
         e.stopPropagation();
+        e.stopImmediatePropagation(); // 추가
+        
         const center = target.getAttribute('data-center');
         if(center) {
             const loc = Data.MEM_LOCATIONS[center];
             if(loc && loc.address) Utils.copyTextToClipboard(loc.address, '주소 복사됨');
             else Utils.copyTextToClipboard(center, '이름 복사됨');
         }
+        return false;
     }
 });
 
