@@ -214,7 +214,6 @@ function handleCenterEdit(div, c) {
             delete MEM_LOCATIONS[c];
             MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; });
             
-            // [수정] 수정 후 즉시 정렬 (영문->한글 순 유지)
             MEM_CENTERS.sort();
             saveData();
         }
@@ -222,4 +221,85 @@ function handleCenterEdit(div, c) {
         displayCenterList(document.getElementById('center-search-input').value);
     };
     div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
+}
+
+// [추가] OCR 이미지 처리 로직
+export async function processReceiptImage(file) {
+    const statusDiv = document.getElementById('ocr-status');
+    const resultContainer = document.getElementById('ocr-result-container');
+    
+    if (!file) return;
+
+    resultContainer.classList.add('hidden');
+    statusDiv.innerHTML = "⏳ 이미지 분석 중입니다... (약 3~5초 소요)";
+    statusDiv.style.color = "#007bff";
+
+    try {
+        const { data: { text } } = await Tesseract.recognize(
+            file,
+            'kor+eng', 
+            { 
+                logger: m => {
+                    if(m.status === 'recognizing text') {
+                        statusDiv.textContent = `⏳ 분석 중... ${(m.progress * 100).toFixed(0)}%`;
+                    }
+                } 
+            }
+        );
+
+        statusDiv.innerHTML = "✅ 분석 완료! 내용을 확인해주세요.";
+        statusDiv.style.color = "green";
+        resultContainer.classList.remove('hidden');
+
+        parseReceiptText(text);
+
+    } catch (error) {
+        console.error(error);
+        statusDiv.innerHTML = "❌ 분석 실패. 이미지가 너무 흐릿하거나 형식이 맞지 않습니다.";
+        statusDiv.style.color = "red";
+    }
+}
+
+function parseReceiptText(text) {
+    const cleanText = text.replace(/\s+/g, ' ');
+
+    const dateMatch = text.match(/(\d{4})[-./년]\s*(\d{2})[-./월]\s*(\d{2})/);
+    if (dateMatch) {
+        document.getElementById('ocr-date').value = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+    } else {
+        document.getElementById('ocr-date').value = getTodayString();
+    }
+
+    const timeMatch = text.match(/(\d{2}):(\d{2})/);
+    if (timeMatch) {
+        document.getElementById('ocr-time').value = `${timeMatch[1]}:${timeMatch[2]}`;
+    } else {
+        document.getElementById('ocr-time').value = "12:00";
+    }
+
+    const costMatch = cleanText.match(/(금액|합계|청구).*?([\d,]+)(원|W|w)?/);
+    if (costMatch) {
+        const cost = parseInt(costMatch[2].replace(/,/g, ''));
+        document.getElementById('ocr-cost').value = cost;
+    }
+
+    const literMatch = cleanText.match(/([\d.]+)L|([\d.]+)\s*(리터|ℓ)/i);
+    if (literMatch) {
+        const lit = parseFloat(literMatch[1] || literMatch[2]);
+        document.getElementById('ocr-liters').value = lit;
+    }
+
+    const priceMatch = cleanText.match(/단가.*?([\d,]+)/);
+    if (priceMatch) {
+        const price = parseInt(priceMatch[1].replace(/,/g, ''));
+        document.getElementById('ocr-price').value = price;
+    }
+
+    let brand = "기타";
+    if (cleanText.includes("S-OIL") || cleanText.includes("에쓰오일")) brand = "S-OIL";
+    else if (cleanText.includes("SK") || cleanText.includes("에너지")) brand = "SK에너지";
+    else if (cleanText.includes("GS") || cleanText.includes("칼텍스")) brand = "GS칼텍스";
+    else if (cleanText.includes("현대") || cleanText.includes("오일뱅크")) brand = "현대오일뱅크";
+    
+    document.getElementById('ocr-brand').value = brand;
 }

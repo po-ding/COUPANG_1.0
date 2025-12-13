@@ -49,6 +49,54 @@ function initialSetup() {
 
     UI.resetForm();
     updateAllDisplays();
+
+    // [추가] OCR 이벤트 리스너
+    const ocrInput = document.getElementById('ocr-input');
+    if (ocrInput) {
+        ocrInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                UI.processReceiptImage(e.target.files[0]);
+            }
+        });
+    }
+
+    const btnSaveOcr = document.getElementById('btn-save-ocr');
+    if (btnSaveOcr) {
+        btnSaveOcr.addEventListener('click', () => {
+            const date = document.getElementById('ocr-date').value || Utils.getTodayString();
+            const time = document.getElementById('ocr-time').value || "12:00";
+            const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+            const liters = parseFloat(document.getElementById('ocr-liters').value) || 0;
+            const unitPrice = parseInt(document.getElementById('ocr-price').value) || 0;
+            const brand = document.getElementById('ocr-brand').value || "기타";
+
+            if (cost === 0 && liters === 0) {
+                alert("금액이나 주유량이 올바르지 않습니다.");
+                return;
+            }
+
+            Data.addRecord({
+                id: Date.now(),
+                date: date,
+                time: time,
+                type: '주유소',
+                cost: cost, // OCR 결과는 원 단위이므로 그대로 저장
+                income: 0,
+                distance: 0,
+                liters: liters,
+                unitPrice: unitPrice,
+                brand: brand
+            });
+
+            Utils.showToast("영수증 내역이 저장되었습니다.");
+            ocrInput.value = '';
+            document.getElementById('ocr-result-container').classList.add('hidden');
+            document.getElementById('ocr-status').textContent = '';
+            
+            updateAllDisplays();
+            Stats.displaySubsidyRecords(); // 유가보조금 탭 갱신
+        });
+    }
 }
 
 function updateAllDisplays() {
@@ -98,7 +146,6 @@ UI.els.btnTripCancel.addEventListener('click', () => {
 UI.els.btnStartTrip.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
     
-    // [추가] 운행거리 미입력 체크
     if (formData.type === '화물운송' && formData.distance <= 0) {
         alert('운행거리를 입력해주세요.');
         return;
@@ -128,7 +175,6 @@ UI.els.btnEndTrip.addEventListener('click', () => {
 UI.els.btnSaveGeneral.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
     
-    // [추가] 운행거리 미입력 체크
     if (formData.type === '화물운송' && formData.distance <= 0) {
         alert('운행거리를 입력해주세요.');
         return;
@@ -151,9 +197,6 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
     if (index > -1) {
         const original = Data.MEM_RECORDS[index];
         const formData = UI.getFormDataWithoutTime();
-        
-        // [참고] 수정 시에도 검증하고 싶다면 여기에 추가 가능. 
-        // 일단 신규 입력 시에만 팝업 요청이 있었으므로 여기는 유지.
         
         if (formData.type === '화물운송' && formData.from && formData.to) {
             const key = `${formData.from}-${formData.to}`;
