@@ -278,11 +278,10 @@
                     </div>
                 </fieldset>
                 
-                <!-- [수정] OCR 영수증 인식 섹션 (버튼형 라벨 적용) -->
+                <!-- [수정] OCR 섹션에 계산 결과 표시 필드 추가 -->
                 <fieldset>
                     <legend>📷 영수증/캡쳐 인식 (베타)</legend>
                     <div class="input-group">
-                        <!-- 실제 input은 숨기고 label을 버튼처럼 사용 -->
                         <label for="ocr-input" class="file-upload-btn">📷 영수증 이미지 선택</label>
                         <input type="file" id="ocr-input" accept="image/*" class="hidden">
                     </div>
@@ -295,13 +294,19 @@
                             <input type="time" id="ocr-time">
                         </div>
                         <div class="input-group row">
-                            <input type="number" id="ocr-cost" placeholder="금액 (원)">
-                            <input type="number" id="ocr-liters" placeholder="주유량 (L)">
+                            <input type="number" id="ocr-cost" placeholder="주유금액 (원)">
+                            <input type="number" id="ocr-subsidy" placeholder="보조금액 (원)">
                         </div>
                         <div class="input-group row">
-                            <input type="number" id="ocr-price" placeholder="단가 (원)">
-                            <input type="text" id="ocr-brand" placeholder="주유소/브랜드">
+                            <!-- [추가] 실지출 금액 표시 (자동 계산) -->
+                            <input type="number" id="ocr-net-cost" placeholder="실지출(차감) 금액" readonly style="background-color: #f8f9fa; font-weight: bold; color: #007bff;">
+                            <input type="number" id="ocr-liters" placeholder="주유리터 (L)">
                         </div>
+                        <div class="input-group row">
+                            <input type="number" id="ocr-price" placeholder="주유단가 (원)">
+                            <input type="number" id="ocr-remaining" placeholder="잔여한도 (L) - 참고용">
+                        </div>
+                        <input type="text" id="ocr-brand" placeholder="주유소/브랜드">
                         <button type="button" id="btn-save-ocr" style="margin-top:10px; background-color: #28a745;">이 내역 저장하기</button>
                     </div>
                 </fieldset>
