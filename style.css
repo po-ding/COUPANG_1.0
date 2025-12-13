@@ -1,4 +1,4 @@
-/** 버전: 16.3 | 최종 수정일: 2025-12-14 (메모 스타일 및 출력 레이아웃 수정) */
+/** 버전: 16.4 | 최종 수정일: 2025-12-14 (파일업로드 버튼 및 OCR 리셋 수정) */
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; margin: 0; padding: 0.5em; background-color: #f5f5f5; }
 .container { max-width: 600px; margin: auto; background-color: white; padding: 0.8em; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -49,21 +49,20 @@ button:hover { opacity: 0.8; }
 .memo-display::before { content: '📝 '; }
 .cancelled { color: #6c757d; font-weight: bold; }
 
-/* [추가] 테이블 내 메모 표시 스타일 */
 .table-memo {
-    display: block;          /* 줄바꿈 강제 */
-    font-size: 0.85em;       /* 글자 크기 작게 */
-    color: #666;             /* 회색 글씨 */
-    margin-top: 4px;         /* 위쪽 간격 */
-    padding: 2px 6px;        /* 내부 여백 */
-    background-color: #f1f3f5; /* 연한 회색 배경 */
-    border-radius: 4px;      /* 둥근 모서리 */
+    display: block;          
+    font-size: 0.85em;       
+    color: #666;             
+    margin-top: 4px;         
+    padding: 2px 6px;        
+    background-color: #f1f3f5; 
+    border-radius: 4px;      
     line-height: 1.4;
     text-align: left;
     word-break: break-all;
 }
 .table-memo::before {
-    content: '└ ';           /* 계층 구조 느낌의 아이콘 텍스트 */
+    content: '└ ';           
     color: #adb5bd;
     margin-right: 2px;
 }
@@ -199,6 +198,26 @@ th { background-color: #f2f2f2; }
 #subsidy-records-container { margin-top: 1.5em; }
 #subsidy-load-more-container { text-align: center; margin-top: 1em; }
 .load-more-btn { background-color: #6c757d; width: 100%; }
+
+/* [추가] 파일 업로드 버튼 스타일 (기존 input hide, label을 버튼처럼) */
+.file-upload-btn {
+    display: inline-block;
+    padding: 0.8em 1em;
+    background-color: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: bold;
+    width: 100%;
+    box-sizing: border-box;
+}
+.file-upload-btn:hover {
+    background-color: #0056b3;
+}
+.file-upload-btn:active {
+    background-color: #004085;
+}
 
 @media screen and (max-width: 768px) {
     .responsive-table thead, .yearly-summary-table thead { display: none; }

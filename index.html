@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>운송 기록부</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Tesseract.js CDN (영수증 인식용) -->
+    <script src='https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js'></script>
 </head>
 <body>
     <div class="container">
@@ -23,7 +25,6 @@
         </div>
 
         <div id="main-page">
-            <!-- 폼 전송 원천 차단 -->
             <form id="record-form" onsubmit="return false;">
                 <fieldset id="datetime-info-fieldset">
                     <legend>기록 일시</legend>
@@ -62,7 +63,6 @@
                         <input type="number" step="0.01" id="fuel-liters" placeholder="주유량 (L)">
                     </div>
                      <select id="fuel-brand">
-                        <!-- [수정] S-OIL을 최상단으로 이동 -->
                         <option value="S-OIL">S-OIL</option>
                         <option value="SK에너지">SK에너지</option>
                         <option value="GS칼텍스">GS칼텍스</option>
@@ -277,6 +277,35 @@
                         <button type="button" id="subsidy-save-btn" class="setting-save-btn">설정 저장</button>
                     </div>
                 </fieldset>
+                
+                <!-- [수정] OCR 영수증 인식 섹션 (버튼형 라벨 적용) -->
+                <fieldset>
+                    <legend>📷 영수증/캡쳐 인식 (베타)</legend>
+                    <div class="input-group">
+                        <!-- 실제 input은 숨기고 label을 버튼처럼 사용 -->
+                        <label for="ocr-input" class="file-upload-btn">📷 영수증 이미지 선택</label>
+                        <input type="file" id="ocr-input" accept="image/*" class="hidden">
+                    </div>
+                    <div id="ocr-status" class="note" style="margin-top:5px; text-align:center;"></div>
+                    
+                    <div id="ocr-result-container" class="hidden" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                        <h4>인식 결과 확인</h4>
+                        <div class="input-group row">
+                            <input type="date" id="ocr-date">
+                            <input type="time" id="ocr-time">
+                        </div>
+                        <div class="input-group row">
+                            <input type="number" id="ocr-cost" placeholder="금액 (원)">
+                            <input type="number" id="ocr-liters" placeholder="주유량 (L)">
+                        </div>
+                        <div class="input-group row">
+                            <input type="number" id="ocr-price" placeholder="단가 (원)">
+                            <input type="text" id="ocr-brand" placeholder="주유소/브랜드">
+                        </div>
+                        <button type="button" id="btn-save-ocr" style="margin-top:10px; background-color: #28a745;">이 내역 저장하기</button>
+                    </div>
+                </fieldset>
+
                 <div id="subsidy-summary" class="subsidy-summary"></div>
                 <div id="subsidy-records-container">
                     <h4>전체 주유 내역</h4>
@@ -321,7 +350,6 @@
 
     <div id="toast-notification"></div>
 
-    <!-- [중요] 여기만 확인하세요! script.js는 없어야 합니다! -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
