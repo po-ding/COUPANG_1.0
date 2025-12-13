@@ -89,12 +89,22 @@ function initialSetup() {
             });
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
-            ocrInput.value = '';
+            
+            // [중요] 저장 후 입력 필드 초기화
+            ocrInput.value = ''; // 파일 선택 초기화
+            document.getElementById('ocr-date').value = '';
+            document.getElementById('ocr-time').value = '';
+            document.getElementById('ocr-cost').value = '';
+            document.getElementById('ocr-liters').value = '';
+            document.getElementById('ocr-price').value = '';
+            document.getElementById('ocr-brand').value = '';
+
             document.getElementById('ocr-result-container').classList.add('hidden');
             document.getElementById('ocr-status').textContent = '';
             
             updateAllDisplays();
-            Stats.displaySubsidyRecords(); // 유가보조금 탭 갱신
+            Stats.displaySubsidyRecords(); // 유가보조금 리스트 갱신
+            Stats.displayCurrentMonthData(); // [중요] 실시간 요약(잔여 한도 등) 즉시 갱신
         });
     }
 }

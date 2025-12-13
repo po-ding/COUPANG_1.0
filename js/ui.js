@@ -230,6 +230,14 @@ export async function processReceiptImage(file) {
     
     if (!file) return;
 
+    // 초기화: 이전 값 제거
+    document.getElementById('ocr-date').value = '';
+    document.getElementById('ocr-time').value = '';
+    document.getElementById('ocr-cost').value = '';
+    document.getElementById('ocr-liters').value = '';
+    document.getElementById('ocr-price').value = '';
+    document.getElementById('ocr-brand').value = '';
+
     resultContainer.classList.add('hidden');
     statusDiv.innerHTML = "⏳ 이미지 분석 중입니다... (약 3~5초 소요)";
     statusDiv.style.color = "#007bff";
