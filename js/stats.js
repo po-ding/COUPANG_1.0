@@ -492,15 +492,14 @@ export function generatePrintView(year, month, period, isDetailed) {
     });
     h += `</tbody></table>`;
 
-    // [수정] 주유 내역 상세 테이블 (항목 추가 및 원 단위 표시)
+    // [수정] 주유 및 정비 내역 테이블 (구분, 브랜드 제거)
     if (fuelList.length > 0) {
         h += `<h3>2. 주유 및 정비 내역</h3>
               <table>
                 <thead>
                     <tr>
                         <th class="col-date">날짜</th>
-                        <th>구분</th>
-                        <th>주유소/브랜드</th>
+                        <!-- REMOVED: 구분, 주유소/브랜드 -->
                         <th>주유리터</th>
                         <th>주유단가</th>
                         <th>주유금액</th>
@@ -522,8 +521,7 @@ export function generatePrintView(year, month, period, isDetailed) {
 
              h += `<tr>
                     <td>${dateDisplay}</td>
-                    <td>${r.type}</td>
-                    <td>${r.brand || '기타'}</td>
+                    <!-- REMOVED: type, brand -->
                     <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'} L</td>
                     <td>${r.unitPrice ? r.unitPrice.toLocaleString() : '-'} 원</td>
                     <td>${cost.toLocaleString()} 원</td>

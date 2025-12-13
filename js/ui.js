@@ -234,8 +234,8 @@ export async function processReceiptImage(file) {
     document.getElementById('ocr-price').value = '';
     document.getElementById('ocr-subsidy').value = '';   
     document.getElementById('ocr-remaining').value = ''; 
-    document.getElementById('ocr-brand').value = '';
     document.getElementById('ocr-net-cost').value = ''; 
+    // [수정] ocr-brand 입력 제거됨
 
     resultContainer.classList.add('hidden');
     statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (약 5초 소요)";
@@ -378,14 +378,8 @@ function parseReceiptText(text) {
         }
     }
 
-    let brand = "기타";
-    if (/S-?OIL|에쓰오일|에스오일/i.test(cleanText)) brand = "S-OIL";
-    else if (/SK|에너지/i.test(cleanText)) brand = "SK에너지";
-    else if (/GS|칼텍스/i.test(cleanText)) brand = "GS칼텍스";
-    else if (/현대|오일뱅크/i.test(cleanText)) brand = "현대오일뱅크";
-    else if (/도로공사/i.test(cleanText)) brand = "기타";
-    
-    document.getElementById('ocr-brand').value = brand;
+    // [수정] 브랜드 입력값 제거됨 - 로직에서만 처리 (저장 시 사용 X)
+    // 브랜드는 main.js에서 저장 시 기본값 "기타"로 처리됨.
 
     // [추가] 주유금액 누락 시 자동 계산 (리터 * 단가)
     const lit = parseFloat(document.getElementById('ocr-liters').value) || 0;

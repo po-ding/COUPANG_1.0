@@ -66,11 +66,6 @@ function initialSetup() {
         const price = parseInt(document.getElementById('ocr-price').value) || 0;
         let cost = parseInt(document.getElementById('ocr-cost').value) || 0;
 
-        // 리터와 단가가 있고 금액이 비었거나, 금액도 사용자가 수정했을 수 있음.
-        // 우선순위: 리터, 단가 수정 시 -> 금액 자동 계산
-        // 단, 금액 필드에 직접 입력 중일 때는 덮어쓰지 않도록 주의 (focus check 생략하고 단순 계산 로직 적용)
-        
-        // 여기서는 리터나 단가 변경 시 금액 재계산
         if (document.activeElement === document.getElementById('ocr-liters') || 
             document.activeElement === document.getElementById('ocr-price')) {
             if (lit > 0 && price > 0) {
@@ -78,11 +73,9 @@ function initialSetup() {
                 document.getElementById('ocr-cost').value = cost;
             }
         } else {
-            // 금액을 직접 수정하면 cost 변수 업데이트
             cost = parseInt(document.getElementById('ocr-cost').value) || 0;
         }
 
-        // 실지출금액(차감) 계산
         const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
         document.getElementById('ocr-net-cost').value = cost - subsidy;
     };
@@ -97,7 +90,6 @@ function initialSetup() {
     const btnRetryOcr = document.getElementById('btn-retry-ocr');
     if (btnRetryOcr) {
         btnRetryOcr.addEventListener('click', () => {
-            // 입력 필드 초기화
             document.getElementById('ocr-date').value = '';
             document.getElementById('ocr-time').value = '';
             document.getElementById('ocr-cost').value = '';
@@ -106,18 +98,15 @@ function initialSetup() {
             document.getElementById('ocr-subsidy').value = '';
             document.getElementById('ocr-remaining').value = '';
             document.getElementById('ocr-net-cost').value = '';
-            document.getElementById('ocr-brand').value = '';
+            // ocr-brand reset removed as input is removed
             
-            // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
             document.getElementById('ocr-input').value = '';
-            
-            // UI 숨기기
             document.getElementById('ocr-result-container').classList.add('hidden');
             document.getElementById('ocr-status').textContent = '';
         });
     }
 
-    // [OCR] 저장 버튼 이벤트
+    // [OCR] 저장하기 버튼 이벤트 (ocr-brand 제거됨)
     const btnSaveOcr = document.getElementById('btn-save-ocr');
     if (btnSaveOcr) {
         btnSaveOcr.addEventListener('click', () => {
@@ -127,7 +116,7 @@ function initialSetup() {
             const liters = parseFloat(document.getElementById('ocr-liters').value) || 0;
             const unitPrice = parseInt(document.getElementById('ocr-price').value) || 0;
             const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
-            const brand = document.getElementById('ocr-brand').value || "기타";
+            const brand = "기타"; // [수정] 브랜드 입력 제거로 기본값 '기타' 설정
 
             if (cost === 0 && liters === 0) {
                 alert("금액이나 주유량이 올바르지 않습니다.");
@@ -150,7 +139,6 @@ function initialSetup() {
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
             
-            // 초기화 (재인식 버튼 로직과 동일)
             btnRetryOcr.click(); 
             
             updateAllDisplays();
