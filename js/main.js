@@ -50,7 +50,7 @@ function initialSetup() {
     UI.resetForm();
     updateAllDisplays();
 
-    // [추가] OCR 이벤트 리스너
+    // [OCR] 파일 입력 이벤트
     const ocrInput = document.getElementById('ocr-input');
     if (ocrInput) {
         ocrInput.addEventListener('change', (e) => {
@@ -60,6 +60,20 @@ function initialSetup() {
         });
     }
 
+    // [추가] 실시간 차감금액 계산 이벤트
+    const updateNetCost = () => {
+        const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+        const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
+        document.getElementById('ocr-net-cost').value = cost - subsidy;
+    };
+    
+    const costInput = document.getElementById('ocr-cost');
+    const subsidyInput = document.getElementById('ocr-subsidy');
+    
+    if (costInput) costInput.addEventListener('input', updateNetCost);
+    if (subsidyInput) subsidyInput.addEventListener('input', updateNetCost);
+
+    // [OCR] 저장 버튼 이벤트
     const btnSaveOcr = document.getElementById('btn-save-ocr');
     if (btnSaveOcr) {
         btnSaveOcr.addEventListener('click', () => {
@@ -68,6 +82,7 @@ function initialSetup() {
             const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
             const liters = parseFloat(document.getElementById('ocr-liters').value) || 0;
             const unitPrice = parseInt(document.getElementById('ocr-price').value) || 0;
+            const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
             const brand = document.getElementById('ocr-brand').value || "기타";
 
             if (cost === 0 && liters === 0) {
@@ -80,31 +95,35 @@ function initialSetup() {
                 date: date,
                 time: time,
                 type: '주유소',
-                cost: cost, // OCR 결과는 원 단위이므로 그대로 저장
+                cost: cost,
                 income: 0,
                 distance: 0,
                 liters: liters,
                 unitPrice: unitPrice,
+                subsidy: subsidy,
                 brand: brand
             });
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
             
-            // [중요] 저장 후 입력 필드 초기화
-            ocrInput.value = ''; // 파일 선택 초기화
+            // 초기화
+            ocrInput.value = '';
             document.getElementById('ocr-date').value = '';
             document.getElementById('ocr-time').value = '';
             document.getElementById('ocr-cost').value = '';
             document.getElementById('ocr-liters').value = '';
             document.getElementById('ocr-price').value = '';
+            document.getElementById('ocr-subsidy').value = '';
+            document.getElementById('ocr-remaining').value = '';
+            document.getElementById('ocr-net-cost').value = ''; // 차감금액 초기화
             document.getElementById('ocr-brand').value = '';
 
             document.getElementById('ocr-result-container').classList.add('hidden');
             document.getElementById('ocr-status').textContent = '';
             
             updateAllDisplays();
-            Stats.displaySubsidyRecords(); // 유가보조금 리스트 갱신
-            Stats.displayCurrentMonthData(); // [중요] 실시간 요약(잔여 한도 등) 즉시 갱신
+            Stats.displaySubsidyRecords();
+            Stats.displayCurrentMonthData();
         });
     }
 }

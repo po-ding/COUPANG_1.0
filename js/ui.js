@@ -2,6 +2,7 @@ import { getTodayString, getCurrentTimeString } from './utils.js';
 import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS } from './data.js';
 
 export const els = {
+    // ... 기존 els 동일 ...
     recordForm: document.getElementById('record-form'),
     dateInput: document.getElementById('date'),
     timeInput: document.getElementById('time'),
@@ -137,10 +138,8 @@ export function resetForm() {
     els.recordForm.reset();
     els.editIdInput.value = '';
     els.editModeIndicator.classList.add('hidden');
-    
     els.dateInput.value = getTodayString();
     els.timeInput.value = getCurrentTimeString();
-    
     els.dateInput.disabled = false;
     els.timeInput.disabled = false;
     els.addressDisplay.innerHTML = '';
@@ -213,7 +212,6 @@ function handleCenterEdit(div, c) {
             if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn);
             delete MEM_LOCATIONS[c];
             MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; });
-            
             MEM_CENTERS.sort();
             saveData();
         }
@@ -223,30 +221,31 @@ function handleCenterEdit(div, c) {
     div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
 }
 
-// [OCR] 이미지 처리 (전처리 + 인식)
+// [OCR] 이미지 처리
 export async function processReceiptImage(file) {
     const statusDiv = document.getElementById('ocr-status');
     const resultContainer = document.getElementById('ocr-result-container');
     
     if (!file) return;
 
-    // 입력 필드 초기화
+    // 필드 초기화
     document.getElementById('ocr-date').value = '';
     document.getElementById('ocr-time').value = '';
     document.getElementById('ocr-cost').value = '';
     document.getElementById('ocr-liters').value = '';
     document.getElementById('ocr-price').value = '';
+    document.getElementById('ocr-subsidy').value = '';   
+    document.getElementById('ocr-remaining').value = ''; 
     document.getElementById('ocr-brand').value = '';
+    document.getElementById('ocr-net-cost').value = ''; // 차감금액 초기화
 
     resultContainer.classList.add('hidden');
-    statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (시간이 더 소요됩니다)";
+    statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (약 5초 소요)";
     statusDiv.style.color = "#007bff";
 
     try {
-        // 1. 이미지 전처리 (흑백 변환 + 선명화)
         const processedImage = await preprocessImage(file);
 
-        // 2. Tesseract 실행
         const { data: { text } } = await Tesseract.recognize(
             processedImage,
             'kor+eng', 
@@ -259,21 +258,21 @@ export async function processReceiptImage(file) {
             }
         );
 
-        statusDiv.innerHTML = "✅ 분석 완료! 내용을 수정/확인해주세요.";
+        statusDiv.innerHTML = "✅ 분석 완료! 내용을 확인해주세요.";
         statusDiv.style.color = "green";
         resultContainer.classList.remove('hidden');
 
-        console.log("Raw OCR Text:", text); // 디버깅용 로그
+        console.log("Raw OCR Text:", text);
         parseReceiptText(text);
 
     } catch (error) {
         console.error(error);
-        statusDiv.innerHTML = "❌ 분석 실패. 이미지가 너무 흐릿합니다.";
+        statusDiv.innerHTML = "❌ 분석 실패. 이미지를 다시 선택해주세요.";
         statusDiv.style.color = "red";
     }
 }
 
-// [OCR] 이미지 전처리 함수 (Canvas 사용: 흑백변환, 대비증가)
+// [OCR] 이미지 전처리 (회색 글씨 인식 강화)
 function preprocessImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -283,7 +282,6 @@ function preprocessImage(file) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 이미지 크기 조정 (너무 크면 느리고, 너무 작으면 인식 불가)
                 const maxDim = 1500;
                 let width = img.width;
                 let height = img.height;
@@ -300,26 +298,19 @@ function preprocessImage(file) {
                 canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // 픽셀 데이터 조작 (이진화)
                 const imageData = ctx.getImageData(0, 0, width, height);
                 const data = imageData.data;
                 
-                // 임계값 (Threshold)
-                const threshold = 128; 
+                // 임계값 210 (옅은 글씨 인식용)
+                const threshold = 210; 
 
                 for (let i = 0; i < data.length; i += 4) {
-                    // 그레이스케일 변환
                     const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-                    
-                    // 이진화 (검은색 or 흰색)
                     const value = gray < threshold ? 0 : 255;
-                    
                     data[i] = data[i+1] = data[i+2] = value;
                 }
                 
                 ctx.putImageData(imageData, 0, 0);
-                
-                // 처리된 이미지를 Blob URL로 반환
                 canvas.toBlob((blob) => {
                     resolve(URL.createObjectURL(blob));
                 });
@@ -330,30 +321,20 @@ function preprocessImage(file) {
     });
 }
 
-// [OCR] 텍스트 파싱 로직 강화
+// [OCR] 텍스트 파싱
 function parseReceiptText(text) {
-    // 공백 제거 및 특수문자 노이즈 정리
-    const lines = text.split('\n');
     let cleanText = text.replace(/\s+/g, ' ');
 
-    // 1. 날짜 추출 (오타 가능성 고려)
-    const dateMatch = text.match(/(\d{2,4})[-.,/년\s]+(\d{1,2})[-.,/월\s]+(\d{1,2})/);
+    const dateMatch = text.match(/(\d{4})[-.,/년\s]+(\d{1,2})[-.,/월\s]+(\d{1,2})/);
     if (dateMatch) {
         let y = dateMatch[1];
         const m = dateMatch[2].padStart(2, '0');
         const d = dateMatch[3].padStart(2, '0');
-        if(y.length === 2) y = "20" + y; // 23년 -> 2023년
         document.getElementById('ocr-date').value = `${y}-${m}-${d}`;
     } else {
-        // 날짜 못 찾으면 오늘 날짜
-        const today = new Date();
-        const y = today.getFullYear();
-        const m = String(today.getMonth() + 1).padStart(2, '0');
-        const d = String(today.getDate()).padStart(2, '0');
-        document.getElementById('ocr-date').value = `${y}-${m}-${d}`;
+        document.getElementById('ocr-date').value = getTodayString();
     }
 
-    // 2. 시간 추출
     const timeMatch = text.match(/(\d{1,2})\s*:\s*(\d{2})/);
     if (timeMatch) {
         const hh = timeMatch[1].padStart(2, '0');
@@ -363,46 +344,58 @@ function parseReceiptText(text) {
         document.getElementById('ocr-time').value = "12:00";
     }
 
-    // 3. 금액 추출 (가장 중요한 부분)
-    // 숫자 패턴을 찾아서 5,000 ~ 1,000,000 사이의 가장 큰 값을 선택 (합계일 확률 높음)
-    const moneyPattern = /([1-9][0-9\s,.]*)원?/g; 
-    let maxMoney = 0;
+    const lines = text.split('\n');
     
-    let match;
-    while ((match = moneyPattern.exec(cleanText)) !== null) {
-        const rawNum = match[1].replace(/[^\d]/g, '');
-        const val = parseInt(rawNum);
-        
-        if (val > 5000 && val < 1000000) {
-            if (val > maxMoney) maxMoney = val;
+    for (let line of lines) {
+        const lineClean = line.replace(/\s/g, ''); 
+
+        const extractNum = (str) => {
+            const matches = str.match(/[\d,.]+/g);
+            if (!matches) return null;
+            let lastVal = matches[matches.length - 1];
+            if(lastVal.endsWith('.')) lastVal = lastVal.slice(0, -1);
+            return parseFloat(lastVal.replace(/,/g, ''));
+        };
+
+        if (lineClean.includes('주유금액') || lineClean.includes('승인금액')) {
+            const val = extractNum(line);
+            if (val && val > 1000) document.getElementById('ocr-cost').value = val;
+        }
+
+        if (lineClean.includes('주유리터') || lineClean.includes('주유량')) {
+            const val = extractNum(line);
+            if (val) document.getElementById('ocr-liters').value = val;
+        }
+
+        if (lineClean.includes('주유단가')) {
+            const val = extractNum(line);
+            if (val && val > 500 && val < 3000) document.getElementById('ocr-price').value = val;
+        }
+
+        if (lineClean.includes('보조금액') || lineClean.includes('보조금')) {
+            const val = extractNum(line);
+            if (val) document.getElementById('ocr-subsidy').value = val;
+        }
+
+        if (lineClean.includes('잔여한도')) {
+            const val = extractNum(line);
+            if (val) document.getElementById('ocr-remaining').value = val;
         }
     }
-    if (maxMoney > 0) document.getElementById('ocr-cost').value = maxMoney;
 
-    // 4. 리터(L) 추출
-    const literMatch = text.match(/(\d{1,3}[,.\s]?\d{1,3})\s*(L|ℓ|리터)/i);
-    if (literMatch) {
-        const rawLit = literMatch[1].replace(/,/g, '.').replace(/\s/g, '');
-        const lit = parseFloat(rawLit);
-        if (!isNaN(lit)) document.getElementById('ocr-liters').value = lit;
-    }
-
-    // 5. 단가 추출 (1000~3000원 사이)
-    const priceMatch = text.match(/(\d{1}[,.\s]?\d{3})\s*원/);
-    if (priceMatch) {
-        const rawPrice = priceMatch[1].replace(/[^\d]/g, '');
-        const price = parseInt(rawPrice);
-        if (price >= 1000 && price <= 3000) {
-            document.getElementById('ocr-price').value = price;
-        }
-    }
-
-    // 6. 브랜드 인식
     let brand = "기타";
     if (/S-?OIL|에쓰오일|에스오일/i.test(cleanText)) brand = "S-OIL";
     else if (/SK|에너지/i.test(cleanText)) brand = "SK에너지";
     else if (/GS|칼텍스/i.test(cleanText)) brand = "GS칼텍스";
     else if (/현대|오일뱅크/i.test(cleanText)) brand = "현대오일뱅크";
+    else if (/도로공사/i.test(cleanText)) brand = "기타";
     
     document.getElementById('ocr-brand').value = brand;
+
+    // [추가] 차감금액 계산
+    const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+    const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
+    if (cost > 0 || subsidy > 0) {
+        document.getElementById('ocr-net-cost').value = cost - subsidy;
+    }
 }
