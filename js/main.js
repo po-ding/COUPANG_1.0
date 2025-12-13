@@ -97,6 +97,13 @@ UI.els.btnTripCancel.addEventListener('click', () => {
 // 2. 운행 시작
 UI.els.btnStartTrip.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
+    
+    // [추가] 운행거리 미입력 체크
+    if (formData.type === '화물운송' && formData.distance <= 0) {
+        alert('운행거리를 입력해주세요.');
+        return;
+    }
+
     Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData });
     Utils.showToast('저장되었습니다.');
     UI.resetForm();
@@ -120,6 +127,13 @@ UI.els.btnEndTrip.addEventListener('click', () => {
 // 4. 일반 저장
 UI.els.btnSaveGeneral.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
+    
+    // [추가] 운행거리 미입력 체크
+    if (formData.type === '화물운송' && formData.distance <= 0) {
+        alert('운행거리를 입력해주세요.');
+        return;
+    }
+
     Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...formData });
     Utils.showToast('저장되었습니다.');
     
@@ -137,6 +151,9 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
     if (index > -1) {
         const original = Data.MEM_RECORDS[index];
         const formData = UI.getFormDataWithoutTime();
+        
+        // [참고] 수정 시에도 검증하고 싶다면 여기에 추가 가능. 
+        // 일단 신규 입력 시에만 팝업 요청이 있었으므로 여기는 유지.
         
         if (formData.type === '화물운송' && formData.from && formData.to) {
             const key = `${formData.from}-${formData.to}`;
@@ -210,11 +227,10 @@ UI.els.btnDeleteRecord.addEventListener('click', () => {
 
 UI.els.btnCancelEdit.addEventListener('click', UI.resetForm);
 
-// [중요] 수정 화면에서 주소 복사 시 새로고침 방지 (강력한 차단)
 UI.els.addressDisplay.addEventListener('click', (e) => {
     e.preventDefault(); 
     e.stopPropagation();
-    e.stopImmediatePropagation(); // 다른 이벤트 실행 방지
+    e.stopImmediatePropagation(); 
     
     if(e.target.classList.contains('address-clickable')) {
         Utils.copyTextToClipboard(e.target.dataset.address, '주소 복사됨');
@@ -246,13 +262,12 @@ document.getElementById('today-date-picker').addEventListener('change', () => St
 document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
 document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
 
-// [중요] 리스트에서 주소 복사 시 새로고침 방지
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
     const target = e.target.closest('.location-clickable');
     if(target) {
         e.preventDefault(); 
         e.stopPropagation();
-        e.stopImmediatePropagation(); // 추가
+        e.stopImmediatePropagation(); 
         
         const center = target.getAttribute('data-center');
         if(center) {

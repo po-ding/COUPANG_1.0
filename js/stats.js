@@ -427,7 +427,6 @@ export function generatePrintView(year, month, period, isDetailed) {
     const w = window.open('','_blank');
     let lastDate = '';
     
-    // [수정] 테이블 헤더와 데이터에서 '시간' 컬럼 완전히 제거
     let h = `
     <html>
     <head>
@@ -440,7 +439,7 @@ export function generatePrintView(year, month, period, isDetailed) {
             .summary { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9; }
             .date-border { border-top: 2px solid #000 !important; }
             .left-align { text-align: left; padding-left: 5px; }
-            .col-date { width: 80px; } /* 날짜 컬럼 너비 약간 조정 */
+            .col-date { width: 80px; }
             .col-location { width: 120px; }
             .col-note { width: 100px; }
             h3 { margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
@@ -481,8 +480,8 @@ export function generatePrintView(year, month, period, isDetailed) {
         if(r.type === '대기') desc = '대기';
         if(r.type === '운행취소') desc = '취소';
         
+        // [수정] (익일) 텍스트 제거
         let dateDisplay = statDate.substring(5);
-        if(r.date !== statDate) dateDisplay += ' <span style="font-size:0.8em">(익일)</span>';
 
         h += `<tr ${borderClass}>
                 <td>${dateDisplay}</td>
@@ -500,7 +499,6 @@ export function generatePrintView(year, month, period, isDetailed) {
                 <thead>
                     <tr>
                         <th class="col-date">날짜</th>
-                        <!-- [수정] 시간 제거 -->
                         <th>구분</th>
                         <th>주유소/브랜드</th>
                         <th>주유량(L)</th>
@@ -512,12 +510,12 @@ export function generatePrintView(year, month, period, isDetailed) {
         
         fuelList.forEach(r => {
              const statDate = getStatisticalDate(r.date, r.time);
+             
+             // [수정] (익일) 텍스트 제거
              let dateDisplay = statDate.substring(5);
-             if(r.date !== statDate) dateDisplay += ' (익일)';
              
              h += `<tr>
                     <td>${dateDisplay}</td>
-                    <!-- [수정] 시간 제거 -->
                     <td>${r.type}</td>
                     <td>${r.brand || '기타'}</td>
                     <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'}</td>
