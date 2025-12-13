@@ -60,18 +60,62 @@ function initialSetup() {
         });
     }
 
-    // [추가] 실시간 차감금액 계산 이벤트
-    const updateNetCost = () => {
-        const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+    // [추가] 실시간 금액 계산 (수동 입력 시)
+    const updateCalculations = () => {
+        const lit = parseFloat(document.getElementById('ocr-liters').value) || 0;
+        const price = parseInt(document.getElementById('ocr-price').value) || 0;
+        let cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+
+        // 리터와 단가가 있고 금액이 비었거나, 금액도 사용자가 수정했을 수 있음.
+        // 우선순위: 리터, 단가 수정 시 -> 금액 자동 계산
+        // 단, 금액 필드에 직접 입력 중일 때는 덮어쓰지 않도록 주의 (focus check 생략하고 단순 계산 로직 적용)
+        
+        // 여기서는 리터나 단가 변경 시 금액 재계산
+        if (document.activeElement === document.getElementById('ocr-liters') || 
+            document.activeElement === document.getElementById('ocr-price')) {
+            if (lit > 0 && price > 0) {
+                cost = Math.round(lit * price);
+                document.getElementById('ocr-cost').value = cost;
+            }
+        } else {
+            // 금액을 직접 수정하면 cost 변수 업데이트
+            cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+        }
+
+        // 실지출금액(차감) 계산
         const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
         document.getElementById('ocr-net-cost').value = cost - subsidy;
     };
     
-    const costInput = document.getElementById('ocr-cost');
-    const subsidyInput = document.getElementById('ocr-subsidy');
-    
-    if (costInput) costInput.addEventListener('input', updateNetCost);
-    if (subsidyInput) subsidyInput.addEventListener('input', updateNetCost);
+    const ocrIds = ['ocr-cost', 'ocr-liters', 'ocr-price', 'ocr-subsidy'];
+    ocrIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateCalculations);
+    });
+
+    // [추가] 재인식(초기화) 버튼
+    const btnRetryOcr = document.getElementById('btn-retry-ocr');
+    if (btnRetryOcr) {
+        btnRetryOcr.addEventListener('click', () => {
+            // 입력 필드 초기화
+            document.getElementById('ocr-date').value = '';
+            document.getElementById('ocr-time').value = '';
+            document.getElementById('ocr-cost').value = '';
+            document.getElementById('ocr-liters').value = '';
+            document.getElementById('ocr-price').value = '';
+            document.getElementById('ocr-subsidy').value = '';
+            document.getElementById('ocr-remaining').value = '';
+            document.getElementById('ocr-net-cost').value = '';
+            document.getElementById('ocr-brand').value = '';
+            
+            // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+            document.getElementById('ocr-input').value = '';
+            
+            // UI 숨기기
+            document.getElementById('ocr-result-container').classList.add('hidden');
+            document.getElementById('ocr-status').textContent = '';
+        });
+    }
 
     // [OCR] 저장 버튼 이벤트
     const btnSaveOcr = document.getElementById('btn-save-ocr');
@@ -106,20 +150,8 @@ function initialSetup() {
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
             
-            // 초기화
-            ocrInput.value = '';
-            document.getElementById('ocr-date').value = '';
-            document.getElementById('ocr-time').value = '';
-            document.getElementById('ocr-cost').value = '';
-            document.getElementById('ocr-liters').value = '';
-            document.getElementById('ocr-price').value = '';
-            document.getElementById('ocr-subsidy').value = '';
-            document.getElementById('ocr-remaining').value = '';
-            document.getElementById('ocr-net-cost').value = ''; // 차감금액 초기화
-            document.getElementById('ocr-brand').value = '';
-
-            document.getElementById('ocr-result-container').classList.add('hidden');
-            document.getElementById('ocr-status').textContent = '';
+            // 초기화 (재인식 버튼 로직과 동일)
+            btnRetryOcr.click(); 
             
             updateAllDisplays();
             Stats.displaySubsidyRecords();

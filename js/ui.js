@@ -2,7 +2,6 @@ import { getTodayString, getCurrentTimeString } from './utils.js';
 import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS } from './data.js';
 
 export const els = {
-    // ... 기존 els 동일 ...
     recordForm: document.getElementById('record-form'),
     dateInput: document.getElementById('date'),
     timeInput: document.getElementById('time'),
@@ -228,7 +227,6 @@ export async function processReceiptImage(file) {
     
     if (!file) return;
 
-    // 필드 초기화
     document.getElementById('ocr-date').value = '';
     document.getElementById('ocr-time').value = '';
     document.getElementById('ocr-cost').value = '';
@@ -237,7 +235,7 @@ export async function processReceiptImage(file) {
     document.getElementById('ocr-subsidy').value = '';   
     document.getElementById('ocr-remaining').value = ''; 
     document.getElementById('ocr-brand').value = '';
-    document.getElementById('ocr-net-cost').value = ''; // 차감금액 초기화
+    document.getElementById('ocr-net-cost').value = ''; 
 
     resultContainer.classList.add('hidden');
     statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (약 5초 소요)";
@@ -262,7 +260,6 @@ export async function processReceiptImage(file) {
         statusDiv.style.color = "green";
         resultContainer.classList.remove('hidden');
 
-        console.log("Raw OCR Text:", text);
         parseReceiptText(text);
 
     } catch (error) {
@@ -272,7 +269,7 @@ export async function processReceiptImage(file) {
     }
 }
 
-// [OCR] 이미지 전처리 (회색 글씨 인식 강화)
+// [OCR] 이미지 전처리
 function preprocessImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -300,8 +297,6 @@ function preprocessImage(file) {
 
                 const imageData = ctx.getImageData(0, 0, width, height);
                 const data = imageData.data;
-                
-                // 임계값 210 (옅은 글씨 인식용)
                 const threshold = 210; 
 
                 for (let i = 0; i < data.length; i += 4) {
@@ -392,10 +387,19 @@ function parseReceiptText(text) {
     
     document.getElementById('ocr-brand').value = brand;
 
+    // [추가] 주유금액 누락 시 자동 계산 (리터 * 단가)
+    const lit = parseFloat(document.getElementById('ocr-liters').value) || 0;
+    const price = parseInt(document.getElementById('ocr-price').value) || 0;
+    let cost = parseInt(document.getElementById('ocr-cost').value) || 0;
+
+    if (cost === 0 && lit > 0 && price > 0) {
+        cost = Math.round(lit * price);
+        document.getElementById('ocr-cost').value = cost;
+    }
+
     // [추가] 차감금액 계산
-    const cost = parseInt(document.getElementById('ocr-cost').value) || 0;
     const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
-    if (cost > 0 || subsidy > 0) {
+    if (cost > 0) {
         document.getElementById('ocr-net-cost').value = cost - subsidy;
     }
 }
