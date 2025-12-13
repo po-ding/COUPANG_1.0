@@ -37,6 +37,7 @@
                     <legend>기록 종류</legend>
                     <select id="type">
                         <option value="화물운송">화물운송</option>
+                        <option value="수입">수입</option> <!-- [추가] 수입 -->
                         <option value="주유소">주유소</option>
                         <option value="소모품">소모품</option>
                         <option value="지출">지출</option>
@@ -70,9 +71,11 @@
                      </select>
                 </fieldset>
 
+                <!-- [수정] 지출/수입 내역 입력 (자동완성 datalist 추가) -->
                 <fieldset id="expense-details" class="hidden">
-                    <legend>지출 내역</legend>
-                    <input type="text" id="expense-item" placeholder="내역 (식대, 통행료 등)">
+                    <legend id="expense-legend">내역 입력</legend>
+                    <input type="text" id="expense-item" list="expense-list" placeholder="내역 (식대, 통행료, 기타수입 등)">
+                    <datalist id="expense-list"></datalist> <!-- 자동완성 목록 -->
                 </fieldset>
 
                 <fieldset id="supply-details" class="hidden">
@@ -87,7 +90,7 @@
                         <input type="number" id="cost" step="0.01" placeholder="지출 금액 (만원)">
                     </div>
                     <div id="income-wrapper">
-                        <input type="number" id="income" step="0.01" placeholder="운송 수입 (만원)">
+                        <input type="number" id="income" step="0.01" placeholder="수입 금액 (만원)">
                     </div>
                 </fieldset>
 
@@ -115,6 +118,7 @@
                 <input type="hidden" id="edit-id">
             </form>
 
+            <!-- 뷰 섹션은 기존 유지 -->
             <div class="view-section">
                 <h2>기록 조회</h2>
                 <div class="view-tabs">
@@ -304,7 +308,6 @@
                             <input type="number" id="ocr-remaining" placeholder="잔여한도 (L) - 참고용">
                         </div>
                         
-                        <!-- [수정] 기타(브랜드) 입력란 제거, 버튼 텍스트 변경 -->
                         <div style="display:flex; gap:5px; margin-top:10px;">
                             <button type="button" id="btn-retry-ocr" style="background-color: #6c757d;">재인식</button>
                             <button type="button" id="btn-save-ocr" style="background-color: #28a745;">저장하기</button>
