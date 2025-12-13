@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>운송 기록부</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Tesseract.js CDN (영수증 인식용) -->
     <script src='https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js'></script>
 </head>
 <body>
@@ -278,7 +277,6 @@
                     </div>
                 </fieldset>
                 
-                <!-- [수정] OCR 섹션에 계산 결과 표시 필드 추가 -->
                 <fieldset>
                     <legend>📷 영수증/캡쳐 인식 (베타)</legend>
                     <div class="input-group">
@@ -298,7 +296,6 @@
                             <input type="number" id="ocr-subsidy" placeholder="보조금액 (원)">
                         </div>
                         <div class="input-group row">
-                            <!-- [추가] 실지출 금액 표시 (자동 계산) -->
                             <input type="number" id="ocr-net-cost" placeholder="실지출(차감) 금액" readonly style="background-color: #f8f9fa; font-weight: bold; color: #007bff;">
                             <input type="number" id="ocr-liters" placeholder="주유리터 (L)">
                         </div>
@@ -307,7 +304,12 @@
                             <input type="number" id="ocr-remaining" placeholder="잔여한도 (L) - 참고용">
                         </div>
                         <input type="text" id="ocr-brand" placeholder="주유소/브랜드">
-                        <button type="button" id="btn-save-ocr" style="margin-top:10px; background-color: #28a745;">이 내역 저장하기</button>
+                        
+                        <!-- [수정] 버튼 그룹: 재인식 + 저장 -->
+                        <div style="display:flex; gap:5px; margin-top:10px;">
+                            <button type="button" id="btn-retry-ocr" style="background-color: #6c757d;">재인식 (초기화)</button>
+                            <button type="button" id="btn-save-ocr" style="background-color: #28a745;">이 내역 저장하기</button>
+                        </div>
                     </div>
                 </fieldset>
 
