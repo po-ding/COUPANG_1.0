@@ -99,15 +99,19 @@ export function displayTodayRecords(date) {
             const fromVal = (r.from||'').replace(/"/g, '&quot;');
             const toVal = (r.to||'').replace(/"/g, '&quot;');
             
-            // [수정] 상/하차지 메모가 있으면 표시
+            // 상/하차지 메모 확인 및 추가
             const fromLoc = MEM_LOCATIONS[r.from] || {};
             const toLoc = MEM_LOCATIONS[r.to] || {};
             
             let fromCell = `<span class="location-clickable" data-center="${fromVal}">${r.from || ''}</span>`;
-            if (fromLoc.memo) fromCell += `<div class="table-memo">${fromLoc.memo}</div>`;
+            if (fromLoc.memo && fromLoc.memo.trim() !== '') {
+                fromCell += `<span class="table-memo">${fromLoc.memo}</span>`;
+            }
             
             let toCell = `<span class="location-clickable" data-center="${toVal}">${r.to || ''}</span>`;
-            if (toLoc.memo) toCell += `<div class="table-memo">${toLoc.memo}</div>`;
+            if (toLoc.memo && toLoc.memo.trim() !== '') {
+                toCell += `<span class="table-memo">${toLoc.memo}</span>`;
+            }
             
             let noteCell = '';
             if(r.distance) noteCell = `<span class="note">${r.distance} km</span>`;
@@ -395,28 +399,27 @@ export function generatePrintView(year, month, period, isDetailed) {
     const eDay = period === 'first' ? 15 : 31;
     const periodStr = period === 'full' ? '1일 ~ 말일' : `${sDay}일 ~ ${eDay===15?15:'말'}일`;
     
-    // [수정] 필터 로직 변경: 운행종료 제외
+    // 1. 기간 내 기록 필터링 (운행종료 제외)
     const target = MEM_RECORDS.filter(r => { 
         const statDate = getStatisticalDate(r.date, r.time);
         const d = new Date(statDate); 
         return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay && r.type !== '운행종료'; 
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
-    // [수정] 주유내역과 일반내역(화물,지출 등) 분리
+    // 2. 주유 내역과 일반 내역 분리
     const fuelList = target.filter(r => r.type === '주유소');
     const mainList = target.filter(r => r.type !== '주유소');
 
     const transport = mainList.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     let inc=0, exp=0, dist=0;
-    // 전체 지출 계산에는 주유비 포함 여부 결정 (보통 정산서는 총 수입/지출을 보여주므로 여기선 합산하거나 별도 표기)
-    // 요청: "주유내역은 별도 표기". 상단 요약에는 합산해서 보여주는 것이 일반적이나, 표 분리를 요청했으므로 
-    // 여기서는 '운송 및 기타 지출'과 '주유비'를 구분해서 요약에 표시하겠습니다.
     
     mainList.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     
+    // 3. 주유 관련 집계
     let fuelCost = 0;
     fuelList.forEach(r => fuelCost += (r.cost||0));
+    const fuelCount = fuelList.length;
     
     const totalExp = exp + fuelCost;
 
@@ -451,7 +454,7 @@ export function generatePrintView(year, month, period, isDetailed) {
         
         <div class="summary">
             <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transport.length}건 | 운행거리: ${dist.toFixed(1)}km</p>
-            <p>수입: ${formatToManwon(inc)}만 | 지출(기타): ${formatToManwon(exp)}만 | <strong>주유비: ${formatToManwon(fuelCost)}만</strong></p>
+            <p>수입: ${formatToManwon(inc)}만 | 지출(기타): ${formatToManwon(exp)}만 | <strong>주유: ${fuelCount}회 (${formatToManwon(fuelCost)}만)</strong></p>
             <p style="color: blue;"><strong>최종 순수익: ${formatToManwon(inc - totalExp)}만원</strong></p>
         </div>
 
@@ -496,7 +499,6 @@ export function generatePrintView(year, month, period, isDetailed) {
     });
     h += `</tbody></table>`;
 
-    // [추가] 주유 내역 테이블 (내역이 있을 경우에만 표시)
     if (fuelList.length > 0) {
         h += `<h3>2. 주유 및 정비 내역</h3>
               <table>
