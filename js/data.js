@@ -27,6 +27,9 @@ export function loadAllData() {
     MEM_CENTERS.length = 0;
     MEM_CENTERS.push(...centers);
     if (MEM_CENTERS.length === 0) MEM_CENTERS.push('안성', '안산', '용인', '이천', '인천');
+    
+    // [수정] 로드 시 영문 우선 정렬
+    MEM_CENTERS.sort(); 
 
     const dists = JSON.parse(localStorage.getItem('saved_distances')) || {};
     for (let k in MEM_DISTANCES) delete MEM_DISTANCES[k];
@@ -44,7 +47,11 @@ export function saveData() {
     localStorage.setItem('records', JSON.stringify(MEM_RECORDS));
     localStorage.setItem('saved_locations', JSON.stringify(MEM_LOCATIONS));
     localStorage.setItem('saved_fares', JSON.stringify(MEM_FARES));
+    
+    // 저장 전에도 정렬 상태 확인
+    MEM_CENTERS.sort();
     localStorage.setItem('logistics_centers', JSON.stringify(MEM_CENTERS));
+    
     localStorage.setItem('saved_distances', JSON.stringify(MEM_DISTANCES));
     localStorage.setItem('saved_costs', JSON.stringify(MEM_COSTS));
 }
@@ -54,7 +61,8 @@ export function updateLocationData(name, address, memo) {
     const trimmed = name.trim();
     if (!MEM_CENTERS.includes(trimmed)) {
         MEM_CENTERS.push(trimmed);
-        MEM_CENTERS.sort();
+        // [수정] 추가 시 즉시 정렬 (기본 sort는 ASCII 순서이므로 영문->한글 순 보장)
+        MEM_CENTERS.sort(); 
     }
     if (address || memo) {
         MEM_LOCATIONS[trimmed] = { ...(MEM_LOCATIONS[trimmed] || {}), address: address || (MEM_LOCATIONS[trimmed]?.address || ''), memo: memo || (MEM_LOCATIONS[trimmed]?.memo || '') };

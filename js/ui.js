@@ -30,7 +30,6 @@ export const els = {
     generalActions: document.getElementById('general-actions'),
     editActions: document.getElementById('edit-actions'),
     
-    // 버튼
     btnTripCancel: document.getElementById('btn-trip-cancel'),
     btnStartTrip: document.getElementById('btn-start-trip'),
     btnEndTrip: document.getElementById('btn-end-trip'),
@@ -186,7 +185,6 @@ export function displayCenterList(filter='') {
         div.className='center-item';
         div.innerHTML=`<div class="info"><span class="center-name">${c}</span><div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div></div>${l.address?`<span class="note">주소: ${l.address}</span>`:''}`;
         
-        // 간단한 이벤트 연결 (UI용)
         div.querySelector('.edit-btn').onclick = () => handleCenterEdit(div,c);
         div.querySelector('.delete-btn').onclick = () => {
             if(!confirm('삭제?')) return;
@@ -215,6 +213,9 @@ function handleCenterEdit(div, c) {
             if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn);
             delete MEM_LOCATIONS[c];
             MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; });
+            
+            // [수정] 수정 후 즉시 정렬 (영문->한글 순 유지)
+            MEM_CENTERS.sort();
             saveData();
         }
         updateLocationData(nn, na, nm);
@@ -222,4 +223,3 @@ function handleCenterEdit(div, c) {
     };
     div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
 }
-// [중요] 여기에 addEventListener가 있으면 안 됨. 모두 제거됨.

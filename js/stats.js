@@ -99,7 +99,6 @@ export function displayTodayRecords(date) {
             const fromVal = (r.from||'').replace(/"/g, '&quot;');
             const toVal = (r.to||'').replace(/"/g, '&quot;');
             
-            // 상/하차지 메모 확인 및 추가
             const fromLoc = MEM_LOCATIONS[r.from] || {};
             const toLoc = MEM_LOCATIONS[r.to] || {};
             
@@ -399,14 +398,12 @@ export function generatePrintView(year, month, period, isDetailed) {
     const eDay = period === 'first' ? 15 : 31;
     const periodStr = period === 'full' ? '1일 ~ 말일' : `${sDay}일 ~ ${eDay===15?15:'말'}일`;
     
-    // 1. 기간 내 기록 필터링 (운행종료 제외)
     const target = MEM_RECORDS.filter(r => { 
         const statDate = getStatisticalDate(r.date, r.time);
         const d = new Date(statDate); 
         return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay && r.type !== '운행종료'; 
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
-    // 2. 주유 내역과 일반 내역 분리
     const fuelList = target.filter(r => r.type === '주유소');
     const mainList = target.filter(r => r.type !== '주유소');
 
@@ -416,7 +413,6 @@ export function generatePrintView(year, month, period, isDetailed) {
     mainList.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     
-    // 3. 주유 관련 집계
     let fuelCost = 0;
     fuelList.forEach(r => fuelCost += (r.cost||0));
     const fuelCount = fuelList.length;
@@ -431,6 +427,7 @@ export function generatePrintView(year, month, period, isDetailed) {
     const w = window.open('','_blank');
     let lastDate = '';
     
+    // [수정] 테이블 헤더와 데이터에서 '시간' 컬럼 완전히 제거
     let h = `
     <html>
     <head>
@@ -443,7 +440,7 @@ export function generatePrintView(year, month, period, isDetailed) {
             .summary { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9; }
             .date-border { border-top: 2px solid #000 !important; }
             .left-align { text-align: left; padding-left: 5px; }
-            .col-date { width: 60px; }
+            .col-date { width: 80px; } /* 날짜 컬럼 너비 약간 조정 */
             .col-location { width: 120px; }
             .col-note { width: 100px; }
             h3 { margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
@@ -462,7 +459,6 @@ export function generatePrintView(year, month, period, isDetailed) {
         <table>
             <thead>
                 <tr>
-                    ${isDetailed ? '<th>시간</th>' : ''}
                     <th class="col-date">날짜</th>
                     <th class="col-location">상차지</th>
                     <th class="col-location">하차지</th>
@@ -489,7 +485,6 @@ export function generatePrintView(year, month, period, isDetailed) {
         if(r.date !== statDate) dateDisplay += ' <span style="font-size:0.8em">(익일)</span>';
 
         h += `<tr ${borderClass}>
-                ${isDetailed ? `<td>${r.time}</td>` : ''}
                 <td>${dateDisplay}</td>
                 <td class="left-align">${from}</td>
                 <td class="left-align">${to}</td>
@@ -505,7 +500,7 @@ export function generatePrintView(year, month, period, isDetailed) {
                 <thead>
                     <tr>
                         <th class="col-date">날짜</th>
-                        <th>시간</th>
+                        <!-- [수정] 시간 제거 -->
                         <th>구분</th>
                         <th>주유소/브랜드</th>
                         <th>주유량(L)</th>
@@ -522,7 +517,7 @@ export function generatePrintView(year, month, period, isDetailed) {
              
              h += `<tr>
                     <td>${dateDisplay}</td>
-                    <td>${r.time}</td>
+                    <!-- [수정] 시간 제거 -->
                     <td>${r.type}</td>
                     <td>${r.brand || '기타'}</td>
                     <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'}</td>
