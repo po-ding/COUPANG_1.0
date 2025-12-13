@@ -1,5 +1,5 @@
 import { getTodayString, getCurrentTimeString } from './utils.js';
-import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS } from './data.js';
+import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS, MEM_EXPENSE_ITEMS } from './data.js';
 
 export const els = {
     recordForm: document.getElementById('record-form'),
@@ -22,6 +22,7 @@ export const els = {
     fuelLitersInput: document.getElementById('fuel-liters'),
     fuelBrandSelect: document.getElementById('fuel-brand'),
     expenseItemInput: document.getElementById('expense-item'),
+    expenseDatalist: document.getElementById('expense-list'), // [추가]
     supplyItemInput: document.getElementById('supply-item'),
     supplyMileageInput: document.getElementById('supply-mileage'),
     costInput: document.getElementById('cost'),
@@ -60,10 +61,20 @@ export function toggleUI() {
             els.tripActions.classList.remove('hidden');
             if(type === '화물운송') els.btnTripCancel.classList.remove('hidden');
         }
+    } else if (type === '수입') {
+        // [추가] 수입 선택 시 UI
+        els.expenseDetails.classList.remove('hidden'); // 적요 입력용
+        document.getElementById('expense-legend').textContent = "수입 내역";
+        els.costInfoFieldset.classList.remove('hidden');
+        els.incomeWrapper.classList.remove('hidden');
+        els.costWrapper.classList.add('hidden');
+        if (!isEditMode) els.generalActions.classList.remove('hidden');
     } else {
+        // 지출, 주유소, 소모품
         els.costInfoFieldset.classList.remove('hidden');
         els.incomeWrapper.classList.add('hidden');
         els.costWrapper.classList.remove('hidden');
+        
         if (type === '주유소') {
             els.fuelDetails.classList.remove('hidden');
             if (!isEditMode) els.generalActions.classList.remove('hidden');
@@ -72,13 +83,14 @@ export function toggleUI() {
             if (!isEditMode) els.generalActions.classList.remove('hidden');
         } else if (type === '지출') {
             els.expenseDetails.classList.remove('hidden');
+            document.getElementById('expense-legend').textContent = "지출 내역";
             if (!isEditMode) els.generalActions.classList.remove('hidden');
         }
     }
 
     if (isEditMode) {
         els.editActions.classList.remove('hidden');
-        if (type === '주유소' || type === '소모품' || type === '지출') {
+        if (type === '주유소' || type === '소모품' || type === '지출' || type === '수입') {
             els.btnEditEndTrip.classList.add('hidden');
         } else {
             els.btnEditEndTrip.classList.remove('hidden');
@@ -102,6 +114,11 @@ export function updateAddressDisplay() {
 
 export function populateCenterDatalist() {
     els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join('');
+}
+
+// [추가] 지출/수입 내역 자동완성 채우기
+export function populateExpenseDatalist() {
+    els.expenseDatalist.innerHTML = MEM_EXPENSE_ITEMS.map(item => `<option value="${item}"></option>`).join('');
 }
 
 export function addCenter(newCenter, address = '', memo = '') {
@@ -170,6 +187,8 @@ export function editRecord(id) {
     window.scrollTo(0,0);
 }
 
+// ... (displayCenterList, handleCenterEdit, processReceiptImage, preprocessImage, parseReceiptText 등 OCR 관련 함수들은 이전과 동일하므로 유지) ...
+// (이전 답변의 OCR 관련 코드를 여기에 포함시킵니다.)
 export function displayCenterList(filter='') {
     els.centerListContainer.innerHTML = "";
     const list = MEM_CENTERS.filter(c => c.includes(filter));
@@ -235,7 +254,6 @@ export async function processReceiptImage(file) {
     document.getElementById('ocr-subsidy').value = '';   
     document.getElementById('ocr-remaining').value = ''; 
     document.getElementById('ocr-net-cost').value = ''; 
-    // [수정] ocr-brand 입력 제거됨
 
     resultContainer.classList.add('hidden');
     statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (약 5초 소요)";
@@ -378,10 +396,6 @@ function parseReceiptText(text) {
         }
     }
 
-    // [수정] 브랜드 입력값 제거됨 - 로직에서만 처리 (저장 시 사용 X)
-    // 브랜드는 main.js에서 저장 시 기본값 "기타"로 처리됨.
-
-    // [추가] 주유금액 누락 시 자동 계산 (리터 * 단가)
     const lit = parseFloat(document.getElementById('ocr-liters').value) || 0;
     const price = parseInt(document.getElementById('ocr-price').value) || 0;
     let cost = parseInt(document.getElementById('ocr-cost').value) || 0;
@@ -391,7 +405,6 @@ function parseReceiptText(text) {
         document.getElementById('ocr-cost').value = cost;
     }
 
-    // [추가] 차감금액 계산
     const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
     if (cost > 0) {
         document.getElementById('ocr-net-cost').value = cost - subsidy;

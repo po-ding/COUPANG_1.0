@@ -27,6 +27,7 @@ window.toggleAllSummaryValues = function(gridElement) {
 function initialSetup() {
     Data.loadAllData();
     UI.populateCenterDatalist();
+    UI.populateExpenseDatalist(); // [추가] 지출/수입 항목 자동완성 로드
     
     const y = new Date().getFullYear();
     const yrs = []; for(let i=0; i<5; i++) yrs.push(`<option value="${y-i}">${y-i}년</option>`);
@@ -98,7 +99,6 @@ function initialSetup() {
             document.getElementById('ocr-subsidy').value = '';
             document.getElementById('ocr-remaining').value = '';
             document.getElementById('ocr-net-cost').value = '';
-            // ocr-brand reset removed as input is removed
             
             document.getElementById('ocr-input').value = '';
             document.getElementById('ocr-result-container').classList.add('hidden');
@@ -106,7 +106,7 @@ function initialSetup() {
         });
     }
 
-    // [OCR] 저장하기 버튼 이벤트 (ocr-brand 제거됨)
+    // [OCR] 저장하기 버튼 이벤트
     const btnSaveOcr = document.getElementById('btn-save-ocr');
     if (btnSaveOcr) {
         btnSaveOcr.addEventListener('click', () => {
@@ -116,7 +116,7 @@ function initialSetup() {
             const liters = parseFloat(document.getElementById('ocr-liters').value) || 0;
             const unitPrice = parseInt(document.getElementById('ocr-price').value) || 0;
             const subsidy = parseInt(document.getElementById('ocr-subsidy').value) || 0;
-            const brand = "기타"; // [수정] 브랜드 입력 제거로 기본값 '기타' 설정
+            const brand = "기타"; 
 
             if (cost === 0 && liters === 0) {
                 alert("금액이나 주유량이 올바르지 않습니다.");
@@ -138,7 +138,6 @@ function initialSetup() {
             });
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
-            
             btnRetryOcr.click(); 
             
             updateAllDisplays();
@@ -220,7 +219,7 @@ UI.els.btnEndTrip.addEventListener('click', () => {
     updateAllDisplays();
 });
 
-// 4. 일반 저장
+// 4. 일반 저장 (지출, 수입 등)
 UI.els.btnSaveGeneral.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
     
@@ -229,9 +228,17 @@ UI.els.btnSaveGeneral.addEventListener('click', () => {
         return;
     }
 
+    // [추가] 지출/수입 항목 저장 (자동완성용)
+    if (formData.type === '지출' || formData.type === '수입') {
+        if (formData.expenseItem) Data.updateExpenseItemData(formData.expenseItem);
+    }
+
     Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...formData });
     Utils.showToast('저장되었습니다.');
     
+    // 저장 후 자동완성 목록 갱신
+    UI.populateExpenseDatalist();
+
     const statDate = Utils.getStatisticalDate(UI.els.dateInput.value, UI.els.timeInput.value);
     document.getElementById('today-date-picker').value = statDate;
     
@@ -253,8 +260,14 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
             if(formData.income > 0) Data.MEM_FARES[key] = formData.income;
         }
         
+        // 수정 시에도 항목 저장
+        if (formData.type === '지출' || formData.type === '수입') {
+            if (formData.expenseItem) Data.updateExpenseItemData(formData.expenseItem);
+        }
+
         Data.MEM_RECORDS[index] = { ...original, ...formData, date: original.date, time: original.time };
         Data.saveData();
+        UI.populateExpenseDatalist();
         Utils.showToast('수정 완료.');
         
         const statDate = Utils.getStatisticalDate(original.date, original.time);
@@ -456,7 +469,7 @@ document.getElementById('subsidy-save-btn').addEventListener('click', () => { lo
 document.getElementById('mileage-correction-save-btn').addEventListener('click', () => { localStorage.setItem('mileage_correction', document.getElementById('mileage-correction').value); Utils.showToast('저장됨'); Stats.displayCumulativeData(); });
 
 document.getElementById('export-json-btn').addEventListener('click', () => { 
-    const data = { records: Data.MEM_RECORDS, centers: Data.MEM_CENTERS, locations: Data.MEM_LOCATIONS, fares: Data.MEM_FARES, distances: Data.MEM_DISTANCES, costs: Data.MEM_COSTS, subsidy: localStorage.getItem('fuel_subsidy_limit'), correction: localStorage.getItem('mileage_correction') }; 
+    const data = { records: Data.MEM_RECORDS, centers: Data.MEM_CENTERS, locations: Data.MEM_LOCATIONS, fares: Data.MEM_FARES, distances: Data.MEM_DISTANCES, costs: Data.MEM_COSTS, subsidy: localStorage.getItem('fuel_subsidy_limit'), correction: localStorage.getItem('mileage_correction'), expenseItems: Data.MEM_EXPENSE_ITEMS }; 
     const b = new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); 
     const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download=`backup_${Utils.getTodayString()}.json`; 
     document.body.appendChild(a); a.click(); document.body.removeChild(a); 
@@ -475,6 +488,7 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
         if(d.costs) localStorage.setItem('saved_costs', JSON.stringify(d.costs)); 
         if(d.subsidy) localStorage.setItem('fuel_subsidy_limit', d.subsidy); 
         if(d.correction) localStorage.setItem('mileage_correction', d.correction); 
+        if(d.expenseItems) localStorage.setItem('saved_expense_items', JSON.stringify(d.expenseItems)); // [추가]
         alert('복원완료'); location.reload(); 
     }; 
     r.readAsText(e.target.files[0]); 

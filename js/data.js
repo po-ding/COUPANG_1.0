@@ -4,6 +4,8 @@ export let MEM_FARES = {};
 export let MEM_CENTERS = [];
 export let MEM_DISTANCES = {};
 export let MEM_COSTS = {};
+// [추가] 지출/수입 항목 저장용 배열
+export let MEM_EXPENSE_ITEMS = [];
 
 export function setRecords(newRecords) {
     MEM_RECORDS.length = 0; 
@@ -27,8 +29,6 @@ export function loadAllData() {
     MEM_CENTERS.length = 0;
     MEM_CENTERS.push(...centers);
     if (MEM_CENTERS.length === 0) MEM_CENTERS.push('안성', '안산', '용인', '이천', '인천');
-    
-    // [수정] 로드 시 영문 우선 정렬
     MEM_CENTERS.sort(); 
 
     const dists = JSON.parse(localStorage.getItem('saved_distances')) || {};
@@ -39,6 +39,11 @@ export function loadAllData() {
     for (let k in MEM_COSTS) delete MEM_COSTS[k];
     Object.assign(MEM_COSTS, costs);
 
+    // [추가] 지출항목 불러오기
+    const items = JSON.parse(localStorage.getItem('saved_expense_items')) || [];
+    MEM_EXPENSE_ITEMS.length = 0;
+    MEM_EXPENSE_ITEMS.push(...items);
+
     syncHistoryToAutocompleteDB();
 }
 
@@ -48,12 +53,14 @@ export function saveData() {
     localStorage.setItem('saved_locations', JSON.stringify(MEM_LOCATIONS));
     localStorage.setItem('saved_fares', JSON.stringify(MEM_FARES));
     
-    // 저장 전에도 정렬 상태 확인
     MEM_CENTERS.sort();
     localStorage.setItem('logistics_centers', JSON.stringify(MEM_CENTERS));
     
     localStorage.setItem('saved_distances', JSON.stringify(MEM_DISTANCES));
     localStorage.setItem('saved_costs', JSON.stringify(MEM_COSTS));
+    
+    // [추가] 지출항목 저장
+    localStorage.setItem('saved_expense_items', JSON.stringify(MEM_EXPENSE_ITEMS));
 }
 
 export function updateLocationData(name, address, memo) {
@@ -61,13 +68,23 @@ export function updateLocationData(name, address, memo) {
     const trimmed = name.trim();
     if (!MEM_CENTERS.includes(trimmed)) {
         MEM_CENTERS.push(trimmed);
-        // [수정] 추가 시 즉시 정렬 (기본 sort는 ASCII 순서이므로 영문->한글 순 보장)
         MEM_CENTERS.sort(); 
     }
     if (address || memo) {
         MEM_LOCATIONS[trimmed] = { ...(MEM_LOCATIONS[trimmed] || {}), address: address || (MEM_LOCATIONS[trimmed]?.address || ''), memo: memo || (MEM_LOCATIONS[trimmed]?.memo || '') };
     }
     saveData();
+}
+
+// [추가] 지출/수입 항목 업데이트 (중복 합산/제거 - 여기서는 유니크한 항목 리스트만 유지)
+export function updateExpenseItemData(item) {
+    if (!item) return;
+    const trimmed = item.trim();
+    if (!MEM_EXPENSE_ITEMS.includes(trimmed)) {
+        MEM_EXPENSE_ITEMS.push(trimmed);
+        MEM_EXPENSE_ITEMS.sort();
+        saveData();
+    }
 }
 
 export function syncHistoryToAutocompleteDB() {

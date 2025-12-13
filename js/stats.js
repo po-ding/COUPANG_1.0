@@ -405,19 +405,29 @@ export function generatePrintView(year, month, period, isDetailed) {
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
     const fuelList = target.filter(r => r.type === '주유소');
-    const mainList = target.filter(r => r.type !== '주유소');
+    const mainList = target.filter(r => r.type !== '주유소'); // 여기엔 수입, 지출, 화물운송 등이 포함됨
 
+    // [수정] 메인 리스트에서 수입/지출 내역 구분
     const transport = mainList.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     let inc=0, exp=0, dist=0;
     
     mainList.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
     transport.forEach(r => dist += (r.distance||0));
     
-    let fuelCost = 0;
-    fuelList.forEach(r => fuelCost += (r.cost||0));
-    const fuelCount = fuelList.length;
+    // [수정] 주유 통계 계산
+    let totalFuelCost = 0;
+    let totalSubsidy = 0;
+    let totalFuelLiters = 0;
+
+    fuelList.forEach(r => {
+        totalFuelCost += (r.cost || 0);
+        totalSubsidy += (r.subsidy || 0);
+        totalFuelLiters += (r.liters || 0);
+    });
     
-    const totalExp = exp + fuelCost;
+    const totalFuelNet = totalFuelCost - totalSubsidy;
+    // 최종 순수익: (운송수입 + 기타수입) - (운송지출 + 기타지출 + 실주유비)
+    const finalNet = inc - exp - totalFuelNet;
 
     const workDays = new Set(
         target.filter(r => r.type === '화물운송')
@@ -443,6 +453,8 @@ export function generatePrintView(year, month, period, isDetailed) {
             .col-location { width: 120px; }
             .col-note { width: 100px; }
             h3 { margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+            .txt-red { color: #dc3545; font-weight: bold; }
+            .txt-blue { color: #007bff; font-weight: bold; }
         </style>
     </head>
     <body>
@@ -450,8 +462,9 @@ export function generatePrintView(year, month, period, isDetailed) {
         
         <div class="summary">
             <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transport.length}건 | 운행거리: ${dist.toFixed(1)}km</p>
-            <p>수입: ${formatToManwon(inc)}만 | 지출(기타): ${formatToManwon(exp)}만 | <strong>주유: ${fuelCount}회 (${formatToManwon(fuelCost)}만)</strong></p>
-            <p style="color: blue;"><strong>최종 순수익: ${formatToManwon(inc - totalExp)}만원</strong></p>
+            <p>운송/기타 수입: ${formatToManwon(inc)}만 | 운송/기타 지출: ${formatToManwon(exp)}만</p>
+            <p>주유금액: ${formatToManwon(totalFuelCost)}만 | 보조금: ${formatToManwon(totalSubsidy)}만 | <span class="txt-red">실주유비: ${formatToManwon(totalFuelNet)}만</span> (리터: ${totalFuelLiters.toFixed(1)}L)</p>
+            <p class="txt-blue" style="font-size: 1.2em; margin-top: 10px;">최종 순수익: ${formatToManwon(finalNet)}만원</p>
         </div>
 
         <h3>1. 운송 및 일반 내역</h3>
@@ -479,7 +492,9 @@ export function generatePrintView(year, month, period, isDetailed) {
         
         if(r.type === '대기') desc = '대기';
         if(r.type === '운행취소') desc = '취소';
-        
+        // [추가] 수입 타입 처리
+        if(r.type === '수입') desc = '기타수입';
+
         let dateDisplay = statDate.substring(5);
 
         h += `<tr ${borderClass}>
@@ -492,14 +507,12 @@ export function generatePrintView(year, month, period, isDetailed) {
     });
     h += `</tbody></table>`;
 
-    // [수정] 주유 및 정비 내역 테이블 (구분, 브랜드 제거)
     if (fuelList.length > 0) {
         h += `<h3>2. 주유 및 정비 내역</h3>
               <table>
                 <thead>
                     <tr>
                         <th class="col-date">날짜</th>
-                        <!-- REMOVED: 구분, 주유소/브랜드 -->
                         <th>주유리터</th>
                         <th>주유단가</th>
                         <th>주유금액</th>
@@ -514,14 +527,12 @@ export function generatePrintView(year, month, period, isDetailed) {
              let dateDisplay = statDate.substring(5);
              if(r.date !== statDate) dateDisplay += ' (익일)';
              
-             // 금액 및 계산 (보조금액 없을 시 0)
              const cost = r.cost || 0;
              const subsidy = r.subsidy || 0;
              const netCost = cost - subsidy;
 
              h += `<tr>
                     <td>${dateDisplay}</td>
-                    <!-- REMOVED: type, brand -->
                     <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'} L</td>
                     <td>${r.unitPrice ? r.unitPrice.toLocaleString() : '-'} 원</td>
                     <td>${cost.toLocaleString()} 원</td>
