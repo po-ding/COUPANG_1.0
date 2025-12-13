@@ -223,14 +223,14 @@ function handleCenterEdit(div, c) {
     div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
 }
 
-// [추가] OCR 이미지 처리 로직
+// [OCR] 이미지 처리 (전처리 + 인식)
 export async function processReceiptImage(file) {
     const statusDiv = document.getElementById('ocr-status');
     const resultContainer = document.getElementById('ocr-result-container');
     
     if (!file) return;
 
-    // 초기화: 이전 값 제거
+    // 입력 필드 초기화
     document.getElementById('ocr-date').value = '';
     document.getElementById('ocr-time').value = '';
     document.getElementById('ocr-cost').value = '';
@@ -239,75 +239,170 @@ export async function processReceiptImage(file) {
     document.getElementById('ocr-brand').value = '';
 
     resultContainer.classList.add('hidden');
-    statusDiv.innerHTML = "⏳ 이미지 분석 중입니다... (약 3~5초 소요)";
+    statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중... (시간이 더 소요됩니다)";
     statusDiv.style.color = "#007bff";
 
     try {
+        // 1. 이미지 전처리 (흑백 변환 + 선명화)
+        const processedImage = await preprocessImage(file);
+
+        // 2. Tesseract 실행
         const { data: { text } } = await Tesseract.recognize(
-            file,
+            processedImage,
             'kor+eng', 
             { 
                 logger: m => {
                     if(m.status === 'recognizing text') {
-                        statusDiv.textContent = `⏳ 분석 중... ${(m.progress * 100).toFixed(0)}%`;
+                        statusDiv.textContent = `⏳ 글자 인식 중... ${(m.progress * 100).toFixed(0)}%`;
                     }
                 } 
             }
         );
 
-        statusDiv.innerHTML = "✅ 분석 완료! 내용을 확인해주세요.";
+        statusDiv.innerHTML = "✅ 분석 완료! 내용을 수정/확인해주세요.";
         statusDiv.style.color = "green";
         resultContainer.classList.remove('hidden');
 
+        console.log("Raw OCR Text:", text); // 디버깅용 로그
         parseReceiptText(text);
 
     } catch (error) {
         console.error(error);
-        statusDiv.innerHTML = "❌ 분석 실패. 이미지가 너무 흐릿하거나 형식이 맞지 않습니다.";
+        statusDiv.innerHTML = "❌ 분석 실패. 이미지가 너무 흐릿합니다.";
         statusDiv.style.color = "red";
     }
 }
 
-function parseReceiptText(text) {
-    const cleanText = text.replace(/\s+/g, ' ');
+// [OCR] 이미지 전처리 함수 (Canvas 사용: 흑백변환, 대비증가)
+function preprocessImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // 이미지 크기 조정 (너무 크면 느리고, 너무 작으면 인식 불가)
+                const maxDim = 1500;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > height && width > maxDim) {
+                    height *= maxDim / width;
+                    width = maxDim;
+                } else if (height > width && height > maxDim) {
+                    width *= maxDim / height;
+                    height = maxDim;
+                }
 
-    const dateMatch = text.match(/(\d{4})[-./년]\s*(\d{2})[-./월]\s*(\d{2})/);
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // 픽셀 데이터 조작 (이진화)
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+                
+                // 임계값 (Threshold)
+                const threshold = 128; 
+
+                for (let i = 0; i < data.length; i += 4) {
+                    // 그레이스케일 변환
+                    const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+                    
+                    // 이진화 (검은색 or 흰색)
+                    const value = gray < threshold ? 0 : 255;
+                    
+                    data[i] = data[i+1] = data[i+2] = value;
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                
+                // 처리된 이미지를 Blob URL로 반환
+                canvas.toBlob((blob) => {
+                    resolve(URL.createObjectURL(blob));
+                });
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// [OCR] 텍스트 파싱 로직 강화
+function parseReceiptText(text) {
+    // 공백 제거 및 특수문자 노이즈 정리
+    const lines = text.split('\n');
+    let cleanText = text.replace(/\s+/g, ' ');
+
+    // 1. 날짜 추출 (오타 가능성 고려)
+    const dateMatch = text.match(/(\d{2,4})[-.,/년\s]+(\d{1,2})[-.,/월\s]+(\d{1,2})/);
     if (dateMatch) {
-        document.getElementById('ocr-date').value = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+        let y = dateMatch[1];
+        const m = dateMatch[2].padStart(2, '0');
+        const d = dateMatch[3].padStart(2, '0');
+        if(y.length === 2) y = "20" + y; // 23년 -> 2023년
+        document.getElementById('ocr-date').value = `${y}-${m}-${d}`;
     } else {
-        document.getElementById('ocr-date').value = getTodayString();
+        // 날짜 못 찾으면 오늘 날짜
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        document.getElementById('ocr-date').value = `${y}-${m}-${d}`;
     }
 
-    const timeMatch = text.match(/(\d{2}):(\d{2})/);
+    // 2. 시간 추출
+    const timeMatch = text.match(/(\d{1,2})\s*:\s*(\d{2})/);
     if (timeMatch) {
-        document.getElementById('ocr-time').value = `${timeMatch[1]}:${timeMatch[2]}`;
+        const hh = timeMatch[1].padStart(2, '0');
+        const mm = timeMatch[2];
+        document.getElementById('ocr-time').value = `${hh}:${mm}`;
     } else {
         document.getElementById('ocr-time').value = "12:00";
     }
 
-    const costMatch = cleanText.match(/(금액|합계|청구).*?([\d,]+)(원|W|w)?/);
-    if (costMatch) {
-        const cost = parseInt(costMatch[2].replace(/,/g, ''));
-        document.getElementById('ocr-cost').value = cost;
+    // 3. 금액 추출 (가장 중요한 부분)
+    // 숫자 패턴을 찾아서 5,000 ~ 1,000,000 사이의 가장 큰 값을 선택 (합계일 확률 높음)
+    const moneyPattern = /([1-9][0-9\s,.]*)원?/g; 
+    let maxMoney = 0;
+    
+    let match;
+    while ((match = moneyPattern.exec(cleanText)) !== null) {
+        const rawNum = match[1].replace(/[^\d]/g, '');
+        const val = parseInt(rawNum);
+        
+        if (val > 5000 && val < 1000000) {
+            if (val > maxMoney) maxMoney = val;
+        }
     }
+    if (maxMoney > 0) document.getElementById('ocr-cost').value = maxMoney;
 
-    const literMatch = cleanText.match(/([\d.]+)L|([\d.]+)\s*(리터|ℓ)/i);
+    // 4. 리터(L) 추출
+    const literMatch = text.match(/(\d{1,3}[,.\s]?\d{1,3})\s*(L|ℓ|리터)/i);
     if (literMatch) {
-        const lit = parseFloat(literMatch[1] || literMatch[2]);
-        document.getElementById('ocr-liters').value = lit;
+        const rawLit = literMatch[1].replace(/,/g, '.').replace(/\s/g, '');
+        const lit = parseFloat(rawLit);
+        if (!isNaN(lit)) document.getElementById('ocr-liters').value = lit;
     }
 
-    const priceMatch = cleanText.match(/단가.*?([\d,]+)/);
+    // 5. 단가 추출 (1000~3000원 사이)
+    const priceMatch = text.match(/(\d{1}[,.\s]?\d{3})\s*원/);
     if (priceMatch) {
-        const price = parseInt(priceMatch[1].replace(/,/g, ''));
-        document.getElementById('ocr-price').value = price;
+        const rawPrice = priceMatch[1].replace(/[^\d]/g, '');
+        const price = parseInt(rawPrice);
+        if (price >= 1000 && price <= 3000) {
+            document.getElementById('ocr-price').value = price;
+        }
     }
 
+    // 6. 브랜드 인식
     let brand = "기타";
-    if (cleanText.includes("S-OIL") || cleanText.includes("에쓰오일")) brand = "S-OIL";
-    else if (cleanText.includes("SK") || cleanText.includes("에너지")) brand = "SK에너지";
-    else if (cleanText.includes("GS") || cleanText.includes("칼텍스")) brand = "GS칼텍스";
-    else if (cleanText.includes("현대") || cleanText.includes("오일뱅크")) brand = "현대오일뱅크";
+    if (/S-?OIL|에쓰오일|에스오일/i.test(cleanText)) brand = "S-OIL";
+    else if (/SK|에너지/i.test(cleanText)) brand = "SK에너지";
+    else if (/GS|칼텍스/i.test(cleanText)) brand = "GS칼텍스";
+    else if (/현대|오일뱅크/i.test(cleanText)) brand = "현대오일뱅크";
     
     document.getElementById('ocr-brand').value = brand;
 }
