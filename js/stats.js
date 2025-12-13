@@ -480,7 +480,6 @@ export function generatePrintView(year, month, period, isDetailed) {
         if(r.type === '대기') desc = '대기';
         if(r.type === '운행취소') desc = '취소';
         
-        // [수정] (익일) 텍스트 제거
         let dateDisplay = statDate.substring(5);
 
         h += `<tr ${borderClass}>
@@ -493,6 +492,7 @@ export function generatePrintView(year, month, period, isDetailed) {
     });
     h += `</tbody></table>`;
 
+    // [수정] 주유 내역 상세 테이블 (항목 추가 및 원 단위 표시)
     if (fuelList.length > 0) {
         h += `<h3>2. 주유 및 정비 내역</h3>
               <table>
@@ -501,26 +501,34 @@ export function generatePrintView(year, month, period, isDetailed) {
                         <th class="col-date">날짜</th>
                         <th>구분</th>
                         <th>주유소/브랜드</th>
-                        <th>주유량(L)</th>
-                        <th>단가</th>
-                        <th>금액</th>
+                        <th>주유리터</th>
+                        <th>주유단가</th>
+                        <th>주유금액</th>
+                        <th>보조금액</th>
+                        <th>실결제금액</th>
                     </tr>
                 </thead>
                 <tbody>`;
         
         fuelList.forEach(r => {
              const statDate = getStatisticalDate(r.date, r.time);
-             
-             // [수정] (익일) 텍스트 제거
              let dateDisplay = statDate.substring(5);
+             if(r.date !== statDate) dateDisplay += ' (익일)';
              
+             // 금액 및 계산 (보조금액 없을 시 0)
+             const cost = r.cost || 0;
+             const subsidy = r.subsidy || 0;
+             const netCost = cost - subsidy;
+
              h += `<tr>
                     <td>${dateDisplay}</td>
                     <td>${r.type}</td>
                     <td>${r.brand || '기타'}</td>
-                    <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'}</td>
-                    <td>${r.unitPrice || '-'}</td>
-                    <td>${formatToManwon(r.cost)}</td>
+                    <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'} L</td>
+                    <td>${r.unitPrice ? r.unitPrice.toLocaleString() : '-'} 원</td>
+                    <td>${cost.toLocaleString()} 원</td>
+                    <td style="color:red;">${subsidy > 0 ? '-' + subsidy.toLocaleString() : '0'} 원</td>
+                    <td style="font-weight:bold;">${netCost.toLocaleString()} 원</td>
                    </tr>`;
         });
         h += `</tbody></table>`;
