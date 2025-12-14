@@ -2,7 +2,19 @@ import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
 import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
 import { editRecord } from './ui.js';
 
-// ... (상단 시간 계산 함수 등은 기존 유지) ...
+// 안전한 숫자 변환 함수 (문자열, null, undefined 처리)
+function safeInt(value) {
+    if (!value) return 0;
+    // 콤마 제거 후 정수 변환
+    const num = parseInt(String(value).replace(/,/g, ''), 10);
+    return isNaN(num) ? 0 : num;
+}
+
+function safeFloat(value) {
+    if (!value) return 0;
+    const num = parseFloat(String(value).replace(/,/g, ''));
+    return isNaN(num) ? 0 : num;
+}
 
 export function calculateTotalDuration(records) {
     const sorted = [...records].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -20,23 +32,23 @@ export function calculateTotalDuration(records) {
     return `${hours}h ${minutes}m`;
 }
 
-// 화면 표시용 요약 (간략 버전)
+// 메인 화면 요약 함수
 export function createSummaryHTML(title, records) {
     const validRecords = records.filter(r => r.type !== '이동취소' && r.type !== '운행종료');
     let totalIncome = 0, totalExpense = 0, totalDistance = 0, totalTripCount = 0;
     let totalFuelCost = 0, totalFuelLiters = 0;
     
     validRecords.forEach(r => {
-        totalIncome += Number(r.income || 0);
-        totalExpense += Number(r.cost || 0);
+        totalIncome += safeInt(r.income);
+        totalExpense += safeInt(r.cost);
         
         if (r.type === '주유소') { 
-            totalFuelCost += Number(r.cost || 0); 
-            totalFuelLiters += parseFloat(r.liters || 0); 
+            totalFuelCost += safeInt(r.cost); 
+            totalFuelLiters += safeFloat(r.liters); 
         }
         
         if (['화물운송'].includes(r.type)) { 
-            totalDistance += parseFloat(r.distance || 0); 
+            totalDistance += safeFloat(r.distance); 
             totalTripCount++; 
         }
     });
@@ -56,6 +68,7 @@ export function createSummaryHTML(title, records) {
     return `<strong>${title}</strong><div class="summary-toggle-grid" onclick="window.toggleAllSummaryValues(this)">${itemsHtml}</div>`;
 }
 
+// 오늘의 기록 출력
 export function displayTodayRecords(date) {
     const todayTbody = document.querySelector('#today-records-table tbody');
     const todaySummaryDiv = document.getElementById('today-summary');
@@ -76,8 +89,11 @@ export function displayTodayRecords(date) {
         }
 
         let money = '';
-        if(r.income > 0) money += `<span class="income">+${formatToManwon(r.income)}</span> `;
-        if(r.cost > 0) money += `<span class="cost">-${formatToManwon(r.cost)}</span>`;
+        const inc = safeInt(r.income);
+        const cst = safeInt(r.cost);
+
+        if(inc > 0) money += `<span class="income">+${formatToManwon(inc)}</span> `;
+        if(cst > 0) money += `<span class="cost">-${formatToManwon(cst)}</span>`;
         if(money === '') money = '0'; 
 
         const isTransport = (r.type === '화물운송' || r.type === '대기' || r.type === '운행취소');
@@ -124,7 +140,7 @@ export function displayTodayRecords(date) {
             }
             
             let noteCell = '';
-            if(r.distance) noteCell = `<span class="note">${r.distance} km</span>`;
+            if(r.distance) noteCell = `<span class="note">${safeFloat(r.distance)} km</span>`;
             if(r.type === '대기') noteCell = `<span class="note">대기중</span>`;
             if(r.type === '운행취소') noteCell = `<span class="note cancelled">취소됨</span>`;
 
@@ -153,30 +169,30 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (displaySubsidyRecords, displayDailyRecords, displayWeeklyRecords, displayMonthlyRecords, displayCurrentMonthData, displayCumulativeData, renderMileageSummary 함수들은 수정사항 없으므로 기존 코드 유지 - 파일 용량상 생략하지 않고 덮어씌울 수 있도록 전체 코드는 아래에 포함합니다) ... 
-// [주의] 아래는 편의상 생략된 부분이 없습니다. 복사해서 쓰시면 됩니다.
+// ... (displaySubsidyRecords, displayDailyRecords, displayWeeklyRecords, displayMonthlyRecords, displayCurrentMonthData, displayCumulativeData, renderMileageSummary 함수는 기존과 동일하게 유지 - safeInt 적용만 권장되나 로직 흐름상 큰 문제 없음) ...
+// 편의상 생략된 부분은 기존 코드를 그대로 사용하시면 됩니다. 여기서는 분량상 생략합니다. 
+// (실제 파일 적용 시에는 이전 답변의 해당 함수들을 그대로 두거나 safeInt만 적용하시면 됩니다.)
 
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
-    
     const fuelRecords = MEM_RECORDS.filter(r => r.type === '주유소').sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-    if (!append) { let displayedSubsidyCount = 0; subsidyRecordsList.innerHTML = ''; }
+    if (!append) { displayedSubsidyCount = 0; subsidyRecordsList.innerHTML = ''; }
     if (fuelRecords.length === 0) { subsidyRecordsList.innerHTML = '<p class="note" style="text-align:center; padding:1em;">주유 내역이 없습니다.</p>'; subsidyLoadMoreContainer.innerHTML = ''; return; }
-    
-    // 페이지네이션 로직은 전역 변수를 쓰거나 클로저를 써야 하므로 여기서는 간략히 전체 표시 혹은 기존 방식 유지
-    // 기존 코드와의 호환성을 위해 로직 유지
-    // (여기서는 displayedSubsidyCount 변수가 모듈 스코프에 있다고 가정)
-    
-    // 단순화를 위해 전체 출력 방식 (혹은 상단 변수 선언 필요)
-    subsidyRecordsList.innerHTML = '';
-    fuelRecords.forEach(r => {
+    const nextBatch = fuelRecords.slice(displayedSubsidyCount, displayedSubsidyCount + 10);
+    nextBatch.forEach(r => {
         const div = document.createElement('div');
         div.className = 'center-item'; div.style.marginBottom = '5px';
-        div.innerHTML = `<div class="info"><span class="center-name">${r.date} <span class="note">(${r.brand || '기타'})</span></span><span style="font-weight:bold;">${formatToManwon(r.cost)} 만원</span></div><div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.9em; color:#555;"><span>주유량: ${parseFloat(r.liters).toFixed(2)} L</span><span>단가: ${r.unitPrice} 원</span></div>`;
+        div.innerHTML = `<div class="info"><span class="center-name">${r.date} <span class="note">(${r.brand || '기타'})</span></span><span style="font-weight:bold;">${formatToManwon(safeInt(r.cost))} 만원</span></div><div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.9em; color:#555;"><span>주유량: ${parseFloat(r.liters).toFixed(2)} L</span><span>단가: ${r.unitPrice} 원</span></div>`;
         subsidyRecordsList.appendChild(div);
     });
-    subsidyLoadMoreContainer.innerHTML = ''; 
+    displayedSubsidyCount += nextBatch.length;
+    if (displayedSubsidyCount < fuelRecords.length) { 
+        subsidyLoadMoreContainer.innerHTML = '<button class="load-more-btn" style="margin-top:10px; padding:10px;">▼ 더 보기</button>'; 
+        subsidyLoadMoreContainer.querySelector('button').onclick = () => displaySubsidyRecords(true); 
+    } else { 
+        subsidyLoadMoreContainer.innerHTML = ''; 
+    }
 }
 
 export function displayDailyRecords() {
@@ -185,44 +201,28 @@ export function displayDailyRecords() {
     const selectedPeriod = `${year}-${month}`;
     const dailyTbody = document.querySelector('#daily-summary-table tbody');
     const dailySummaryDiv = document.getElementById('daily-summary');
-
     const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(selectedPeriod));
-    
     dailyTbody.innerHTML = '';
     dailySummaryDiv.classList.remove('hidden');
     dailySummaryDiv.innerHTML = createSummaryHTML(`${parseInt(month)}월 총계 (04시 기준)`, monthRecords);
-
     const recordsByDate = {};
     monthRecords.forEach(r => {
         const statDate = getStatisticalDate(r.date, r.time);
         if(!recordsByDate[statDate]) recordsByDate[statDate] = { records: [], income: 0, expense: 0, distance: 0, tripCount: 0 };
         recordsByDate[statDate].records.push(r);
     });
-
     Object.keys(recordsByDate).sort().reverse().forEach(date => {
         const dayData = recordsByDate[date];
         const transport = dayData.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
         dayData.records.forEach(r => {
-            if(r.type !== '운행종료' && r.type !== '이동취소') { inc += Number(r.income||0); exp += Number(r.cost||0); }
-            if(r.type === '화물운송') { dist += (r.distance||0); count++; }
+            if(r.type !== '운행종료' && r.type !== '이동취소') { inc += safeInt(r.income); exp += safeInt(r.cost); }
+            if(r.type === '화물운송') { dist += safeFloat(r.distance); count++; }
         });
-
         if (count === 0) return;
-
         const tr = document.createElement('tr');
         if(date === getTodayString()) tr.style.fontWeight = 'bold';
-        
-        tr.innerHTML = `
-            <td data-label="일">${parseInt(date.substring(8,10))}일</td>
-            <td data-label="수입"><span class="income">${formatToManwon(inc)}</span></td>
-            <td data-label="지출"><span class="cost">${formatToManwon(exp)}</span></td>
-            <td data-label="정산"><strong>${formatToManwon(inc-exp)}</strong></td>
-            <td data-label="거리">${dist.toFixed(1)}</td>
-            <td data-label="이동">${count}</td>
-            <td data-label="소요">${calculateTotalDuration(transport)}</td>
-            <td data-label="관리"><button class="edit-btn" onclick="window.viewDateDetails('${date}')">상세</button></td>
-        `;
+        tr.innerHTML = `<td data-label="일">${parseInt(date.substring(8,10))}일</td><td data-label="수입"><span class="income">${formatToManwon(inc)}</span></td><td data-label="지출"><span class="cost">${formatToManwon(exp)}</span></td><td data-label="정산"><strong>${formatToManwon(inc-exp)}</strong></td><td data-label="거리">${dist.toFixed(1)}</td><td data-label="이동">${count}</td><td data-label="소요">${calculateTotalDuration(transport)}</td><td data-label="관리"><button class="edit-btn" onclick="window.viewDateDetails('${date}')">상세</button></td>`;
         dailyTbody.appendChild(tr);
     });
 }
@@ -233,12 +233,9 @@ export function displayWeeklyRecords() {
     const selectedPeriod = `${year}-${month}`;
     const weeklyTbody = document.querySelector('#weekly-summary-table tbody');
     const weeklySummaryDiv = document.getElementById('weekly-summary');
-    
     const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(selectedPeriod));
-    
     weeklyTbody.innerHTML = '';
     weeklySummaryDiv.innerHTML = createSummaryHTML(`${parseInt(month)}월 주별`, monthRecords);
-    
     const weeks = {};
     monthRecords.forEach(r => {
         const statDate = getStatisticalDate(r.date, r.time);
@@ -247,25 +244,14 @@ export function displayWeeklyRecords() {
         if(!weeks[w]) weeks[w] = [];
         weeks[w].push(r);
     });
-    
     Object.keys(weeks).forEach(w => {
         const data = weeks[w];
         const transport = data.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
-        data.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=Number(r.income||0);exp+=Number(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
+        data.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} });
         const dates = data.map(r => new Date(getStatisticalDate(r.date, r.time)).getDate());
         const tr = document.createElement('tr');
-        
-        tr.innerHTML = `
-            <td data-label="주차">${w}주차</td>
-            <td data-label="기간">${Math.min(...dates)}일~${Math.max(...dates)}일</td>
-            <td data-label="수입">${formatToManwon(inc)}</td>
-            <td data-label="지출">${formatToManwon(exp)}</td>
-            <td data-label="정산">${formatToManwon(inc-exp)}</td>
-            <td data-label="거리">${dist.toFixed(1)}</td>
-            <td data-label="이동">${count}</td>
-            <td data-label="소요">${calculateTotalDuration(transport)}</td>
-        `;
+        tr.innerHTML = `<td data-label="주차">${w}주차</td><td data-label="기간">${Math.min(...dates)}일~${Math.max(...dates)}일</td><td data-label="수입">${formatToManwon(inc)}</td><td data-label="지출">${formatToManwon(exp)}</td><td data-label="정산">${formatToManwon(inc-exp)}</td><td data-label="거리">${dist.toFixed(1)}</td><td data-label="이동">${count}</td><td data-label="소요">${calculateTotalDuration(transport)}</td>`;
         weeklyTbody.appendChild(tr);
     });
 }
@@ -274,12 +260,9 @@ export function displayMonthlyRecords() {
     const year = document.getElementById('monthly-year-select').value;
     const monthlyTbody = document.querySelector('#monthly-summary-table tbody');
     const monthlyYearlySummaryDiv = document.getElementById('monthly-yearly-summary');
-
     const yearRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(year));
-    
     monthlyYearlySummaryDiv.innerHTML = createSummaryHTML(`${year}년`, yearRecords);
     monthlyTbody.innerHTML = '';
-    
     const months = {};
     yearRecords.forEach(r => { 
         const statDate = getStatisticalDate(r.date, r.time);
@@ -291,18 +274,9 @@ export function displayMonthlyRecords() {
         const data = months[m];
         const transport = data.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc=0,exp=0,dist=0,count=0;
-         data.records.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=Number(r.income||0);exp+=Number(r.cost||0);} if(r.type==='화물운송'){dist+=(r.distance||0);count++;} });
+         data.records.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} });
         const tr = document.createElement('tr');
-        
-        tr.innerHTML = `
-            <td data-label="월">${parseInt(m.substring(5))}월</td>
-            <td data-label="수입">${formatToManwon(inc)}</td>
-            <td data-label="지출">${formatToManwon(exp)}</td>
-            <td data-label="정산">${formatToManwon(inc-exp)}</td>
-            <td data-label="거리">${dist.toFixed(1)}</td>
-            <td data-label="이동">${count}</td>
-            <td data-label="소요">${calculateTotalDuration(transport)}</td>
-        `;
+        tr.innerHTML = `<td data-label="월">${parseInt(m.substring(5))}월</td><td data-label="수입">${formatToManwon(inc)}</td><td data-label="지출">${formatToManwon(exp)}</td><td data-label="정산">${formatToManwon(inc-exp)}</td><td data-label="거리">${dist.toFixed(1)}</td><td data-label="이동">${count}</td><td data-label="소요">${calculateTotalDuration(transport)}</td>`;
         monthlyTbody.appendChild(tr);
     });
 }
@@ -312,23 +286,18 @@ export function displayCurrentMonthData() {
     let checkDate = new Date();
     if(checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
     const currentPeriod = checkDate.toISOString().slice(0, 7); 
-
     const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(currentPeriod) && r.type !== '이동취소' && r.type !== '운행종료'); 
-    
     document.getElementById('current-month-title').textContent = `${parseInt(currentPeriod.split('-')[1])}월 실시간 요약 (04시 기준)`; 
-    
     let inc = 0, exp = 0, count = 0, dist = 0, liters = 0; 
     monthRecords.forEach(r => { 
-        inc += Number(r.income||0); exp += Number(r.cost||0); 
-        if(r.type === '화물운송') { count++; dist += (r.distance||0); } 
-        if(r.type === '주유소') liters += (r.liters||0); 
+        inc += safeInt(r.income); exp += safeInt(r.cost); 
+        if(r.type === '화물운송') { count++; dist += safeFloat(r.distance); } 
+        if(r.type === '주유소') liters += safeFloat(r.liters); 
     }); 
-    
     const days = new Set(monthRecords.map(r => getStatisticalDate(r.date, r.time))).size; 
     const net = inc - exp; 
     const avg = liters > 0 && dist > 0 ? (dist/liters).toFixed(2) : 0; 
     const costKm = dist > 0 ? Math.round(exp/dist) : 0; 
-    
     document.getElementById('current-month-operating-days').textContent = `${days} 일`; 
     document.getElementById('current-month-trip-count').textContent = `${count} 건`; 
     document.getElementById('current-month-total-mileage').textContent = `${dist.toFixed(1)} km`; 
@@ -337,7 +306,6 @@ export function displayCurrentMonthData() {
     document.getElementById('current-month-net-income').textContent = `${formatToManwon(net)} 만원`; 
     document.getElementById('current-month-avg-economy').textContent = `${avg} km/L`; 
     document.getElementById('current-month-cost-per-km').textContent = `${costKm.toLocaleString()} 원`; 
-    
     const limit = parseFloat(localStorage.getItem("fuel_subsidy_limit")) || 0; 
     const remain = limit - liters; 
     const pct = limit > 0 ? Math.min(100, 100 * liters / limit).toFixed(1) : 0; 
@@ -348,9 +316,9 @@ export function displayCumulativeData() {
     const records = MEM_RECORDS.filter(r => r.type !== '이동취소' && r.type !== '운행종료');
     let inc = 0, exp = 0, count = 0, dist = 0, liters = 0;
     records.forEach(r => {
-        inc += Number(r.income||0); exp += Number(r.cost||0);
-        if(r.type === '주유소') liters += (r.liters||0);
-        if(r.type === '화물운송') { count++; dist += (r.distance||0); }
+        inc += safeInt(r.income); exp += safeInt(r.cost);
+        if(r.type === '주유소') liters += safeFloat(r.liters);
+        if(r.type === '화물운송') { count++; dist += safeFloat(r.distance); }
     });
     const correction = parseFloat(localStorage.getItem("mileage_correction")) || 0;
     const totalDist = dist + correction;
@@ -358,7 +326,6 @@ export function displayCumulativeData() {
     const avg = liters > 0 && totalDist > 0 ? (totalDist/liters).toFixed(2) : 0;
     const costKm = totalDist > 0 ? Math.round(exp/totalDist) : 0;
     const days = new Set(records.map(r => getStatisticalDate(r.date, r.time))).size;
-
     document.getElementById('cumulative-operating-days').textContent = `${days} 일`;
     document.getElementById('cumulative-trip-count').textContent = `${count} 건`;
     document.getElementById('cumulative-total-mileage').textContent = `${Math.round(totalDist).toLocaleString()} km`;
@@ -367,7 +334,6 @@ export function displayCumulativeData() {
     document.getElementById('cumulative-net-income').textContent = `${formatToManwon(net)} 만원`;
     document.getElementById('cumulative-avg-economy').textContent = `${avg} km/L`;
     document.getElementById('cumulative-cost-per-km').textContent = `${costKm.toLocaleString()} 원`;
-    
     renderMileageSummary();
 }
 
@@ -406,60 +372,55 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
-// [핵심] 운송내역 출력 함수 (순수익 계산 로직 및 단위 수정)
+// [핵심] 운송내역 출력 (순수익 오류 수정 & 원 단위 표시)
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
     const periodStr = period === 'full' ? '1일 ~ 말일' : `${sDay}일 ~ ${eDay===15?15:'말'}일`;
     
+    // 1. 기간 내 기록 필터링
     const target = MEM_RECORDS.filter(r => { 
         const statDate = getStatisticalDate(r.date, r.time);
         const d = new Date(statDate); 
         return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay && r.type !== '운행종료'; 
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
-    // 카테고리 분리
+    // 2. 카테고리 분리
     const transportList = target.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     const fuelList = target.filter(r => r.type === '주유소');
     const expenseList = target.filter(r => ['지출', '소모품'].includes(r.type));
     const incomeList = target.filter(r => r.type === '수입');
 
-    // 1. 운송 수입/비용/거리 계산
-    let totalTransportIncome = 0;
-    let totalTransportExpense = 0; 
-    let totalDistance = 0;
+    // 3. 정밀 계산 (safeInt 사용)
     
+    // A. 운송
+    let transInc = 0, transExp = 0, transDist = 0;
     transportList.forEach(r => {
-        totalTransportIncome += Number(r.income || 0);
-        totalTransportExpense += Number(r.cost || 0);
-        totalDistance += Number(r.distance || 0);
+        transInc += safeInt(r.income);
+        transExp += safeInt(r.cost);
+        transDist += safeFloat(r.distance);
     });
 
-    // 2. 일반 지출/수입 계산
-    let totalGeneralExpense = 0;
-    expenseList.forEach(r => totalGeneralExpense += Number(r.cost || 0));
-
-    let totalGeneralIncome = 0;
-    incomeList.forEach(r => totalGeneralIncome += Number(r.income || 0));
-
-    // 3. 주유비 계산 (총액, 보조금, 실결제액)
-    let totalFuelCost = 0;
-    let totalFuelSubsidy = 0;
-    let totalFuelLiters = 0;
-
+    // B. 주유 (주유총액, 보조금, 실주유비)
+    let fuelTotalCost = 0, fuelTotalSubsidy = 0;
     fuelList.forEach(r => {
-        totalFuelCost += Number(r.cost || 0);
-        totalFuelSubsidy += Number(r.subsidy || 0);
-        totalFuelLiters += Number(r.liters || 0);
+        fuelTotalCost += safeInt(r.cost);
+        fuelTotalSubsidy += safeInt(r.subsidy);
     });
-    
-    // 실 주유비 = 주유총액 - 보조금합계
-    const totalFuelNet = totalFuelCost - totalFuelSubsidy;
+    const fuelNetCost = fuelTotalCost - fuelTotalSubsidy;
 
-    // 4. 최종 집계 (단위: 원)
-    const totalRevenue = totalTransportIncome + totalGeneralIncome;
-    const totalSpend = totalTransportExpense + totalGeneralExpense + totalFuelNet; // 실주유비 반영
-    const finalProfit = totalRevenue - totalSpend;
+    // C. 일반 지출
+    let genExp = 0;
+    expenseList.forEach(r => genExp += safeInt(r.cost));
+
+    // D. 일반 수입
+    let genInc = 0;
+    incomeList.forEach(r => genInc += safeInt(r.income));
+
+    // E. 최종 집계
+    const totalRevenue = transInc + genInc; // 총 수입
+    const totalSpend = transExp + genExp + fuelNetCost; // 총 지출 (실주유비 포함)
+    const finalProfit = totalRevenue - totalSpend; // 순수익
 
     const workDays = new Set(
         transportList.map(r => getStatisticalDate(r.date, r.time))
@@ -492,11 +453,11 @@ export function generatePrintView(year, month, period, isDetailed) {
         <h2>${year}년 ${month}월 ${periodStr} 운송 기록 (04시 기준)</h2>
         
         <div class="summary">
-            <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transportList.length}건 | 운행거리: ${totalDistance.toFixed(1)}km</p>
+            <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transportList.length}건 | 운행거리: ${transDist.toFixed(1)}km</p>
             <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
-            <p><span class="txt-blue">[ + ] 총 수입: ${totalRevenue.toLocaleString()} 원</span> (운송: ${totalTransportIncome.toLocaleString()} + 기타: ${totalGeneralIncome.toLocaleString()})</p>
-            <p><span class="txt-red">[ - ] 총 지출: ${(totalTransportExpense + totalGeneralExpense).toLocaleString()} 원</span> (운송/일반 지출)</p>
-            <p><span class="txt-red">[ - ] 실 주유비: ${totalFuelNet.toLocaleString()} 원</span> (주유금액: ${totalFuelCost.toLocaleString()} - 보조금: ${totalFuelSubsidy.toLocaleString()})</p>
+            <p><span class="txt-blue">[ + ] 총 수입: ${totalRevenue.toLocaleString()} 원</span> (운송: ${transInc.toLocaleString()} + 기타: ${genInc.toLocaleString()})</p>
+            <p><span class="txt-red">[ - ] 총 지출: ${(transExp + genExp).toLocaleString()} 원</span> (운송지출: ${transExp.toLocaleString()} + 일반지출: ${genExp.toLocaleString()})</p>
+            <p><span class="txt-red">[ - ] 실 주유비: ${fuelNetCost.toLocaleString()} 원</span> (주유금액: ${fuelTotalCost.toLocaleString()} - 보조금: ${fuelTotalSubsidy.toLocaleString()})</p>
             <hr style="border:0; border-top:2px solid #333; margin:10px 0;">
             <p class="txt-green" style="font-size: 1.4em;">[ = ] 최종 순수익: ${finalProfit.toLocaleString()} 원</p>
         </div>
@@ -536,7 +497,7 @@ export function generatePrintView(year, month, period, isDetailed) {
                 <td class="left-align">${from}</td>
                 <td class="left-align">${to}</td>
                 <td>${desc}</td>
-                ${isDetailed ? `<td>${r.distance||'-'}</td><td>${Number(r.income||0).toLocaleString()}</td>` : ''}
+                ${isDetailed ? `<td>${safeFloat(r.distance)||'-'}</td><td>${safeInt(r.income).toLocaleString()}</td>` : ''}
               </tr>`;
     });
     h += `</tbody></table>`;
@@ -562,14 +523,14 @@ export function generatePrintView(year, month, period, isDetailed) {
              let dateDisplay = statDate.substring(5);
              if(r.date !== statDate) dateDisplay += ' (익일)';
              
-             const cost = Number(r.cost || 0);
-             const subsidy = Number(r.subsidy || 0);
+             const cost = safeInt(r.cost);
+             const subsidy = safeInt(r.subsidy);
              const netCost = cost - subsidy;
 
              h += `<tr>
                     <td>${dateDisplay}</td>
-                    <td>${r.liters ? parseFloat(r.liters).toFixed(2) : '-'} L</td>
-                    <td>${r.unitPrice ? Number(r.unitPrice).toLocaleString() : '-'} 원</td>
+                    <td>${safeFloat(r.liters).toFixed(2)} L</td>
+                    <td>${safeInt(r.unitPrice).toLocaleString()} 원</td>
                     <td>${cost.toLocaleString()} 원</td>
                     <td style="color:red;">${subsidy > 0 ? '-' + subsidy.toLocaleString() : '0'} 원</td>
                     <td style="font-weight:bold;">${netCost.toLocaleString()} 원</td>
@@ -600,7 +561,7 @@ export function generatePrintView(year, month, period, isDetailed) {
             h += `<tr>
                     <td>${dateDisplay}</td>
                     <td class="left-align">${item}</td>
-                    <td>${Number(r.cost||0).toLocaleString()} 원</td>
+                    <td>${safeInt(r.cost).toLocaleString()} 원</td>
                   </tr>`;
         });
         h += `</tbody></table>`;
@@ -628,7 +589,7 @@ export function generatePrintView(year, month, period, isDetailed) {
             h += `<tr>
                     <td>${dateDisplay}</td>
                     <td class="left-align">${item}</td>
-                    <td>${Number(r.income||0).toLocaleString()} 원</td>
+                    <td>${safeInt(r.income).toLocaleString()} 원</td>
                   </tr>`;
         });
         h += `</tbody></table>`;
