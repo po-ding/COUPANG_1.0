@@ -1,3 +1,5 @@
+// --- START OF FILE js/ui.js ---
+
 import { getTodayString, getCurrentTimeString } from './utils.js';
 import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS, MEM_EXPENSE_ITEMS } from './data.js';
 
@@ -22,7 +24,7 @@ export const els = {
     fuelLitersInput: document.getElementById('fuel-liters'),
     fuelBrandSelect: document.getElementById('fuel-brand'),
     expenseItemInput: document.getElementById('expense-item'),
-    expenseDatalist: document.getElementById('expense-list'), // [추가]
+    expenseDatalist: document.getElementById('expense-list'),
     supplyItemInput: document.getElementById('supply-item'),
     supplyMileageInput: document.getElementById('supply-mileage'),
     costInput: document.getElementById('cost'),
@@ -62,15 +64,13 @@ export function toggleUI() {
             if(type === '화물운송') els.btnTripCancel.classList.remove('hidden');
         }
     } else if (type === '수입') {
-        // [추가] 수입 선택 시 UI
-        els.expenseDetails.classList.remove('hidden'); // 적요 입력용
+        els.expenseDetails.classList.remove('hidden'); 
         document.getElementById('expense-legend').textContent = "수입 내역";
         els.costInfoFieldset.classList.remove('hidden');
         els.incomeWrapper.classList.remove('hidden');
         els.costWrapper.classList.add('hidden');
         if (!isEditMode) els.generalActions.classList.remove('hidden');
     } else {
-        // 지출, 주유소, 소모품
         els.costInfoFieldset.classList.remove('hidden');
         els.incomeWrapper.classList.add('hidden');
         els.costWrapper.classList.remove('hidden');
@@ -116,7 +116,6 @@ export function populateCenterDatalist() {
     els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join('');
 }
 
-// [추가] 지출/수입 내역 자동완성 채우기
 export function populateExpenseDatalist() {
     els.expenseDatalist.innerHTML = MEM_EXPENSE_ITEMS.map(item => `<option value="${item}"></option>`).join('');
 }
@@ -187,8 +186,6 @@ export function editRecord(id) {
     window.scrollTo(0,0);
 }
 
-// ... (displayCenterList, handleCenterEdit, processReceiptImage, preprocessImage, parseReceiptText 등 OCR 관련 함수들은 이전과 동일하므로 유지) ...
-// (이전 답변의 OCR 관련 코드를 여기에 포함시킵니다.)
 export function displayCenterList(filter='') {
     els.centerListContainer.innerHTML = "";
     const list = MEM_CENTERS.filter(c => c.includes(filter));

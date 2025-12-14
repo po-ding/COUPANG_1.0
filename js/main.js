@@ -1,9 +1,11 @@
+// --- START OF FILE js/main.js ---
+
 import * as Utils from './utils.js';
 import * as Data from './data.js';
 import * as UI from './ui.js';
 import * as Stats from './stats.js';
 
-// 전역 윈도우 객체에 할당 (HTML onclick에서 호출)
+// 전역 윈도우 객체에 할당 (HTML onclick 속성에서 호출하기 위함)
 window.viewDateDetails = function(date) { 
     document.getElementById('today-date-picker').value = date; 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove("active")); 
@@ -27,8 +29,9 @@ window.toggleAllSummaryValues = function(gridElement) {
 function initialSetup() {
     Data.loadAllData();
     UI.populateCenterDatalist();
-    UI.populateExpenseDatalist(); // [추가] 지출/수입 항목 자동완성 로드
+    UI.populateExpenseDatalist(); // 지출/수입 항목 자동완성 로드
     
+    // 날짜 선택기(년/월) 초기화
     const y = new Date().getFullYear();
     const yrs = []; for(let i=0; i<5; i++) yrs.push(`<option value="${y-i}">${y-i}년</option>`);
     [document.getElementById('daily-year-select'), document.getElementById('weekly-year-select'), document.getElementById('monthly-year-select'), document.getElementById('print-year-select')].forEach(el => el.innerHTML = yrs.join(''));
@@ -39,9 +42,11 @@ function initialSetup() {
         el.value = (new Date().getMonth()+1).toString().padStart(2,'0'); 
     });
 
+    // 설정값 로드
     document.getElementById('mileage-correction').value = localStorage.getItem('mileage_correction') || 0;
     document.getElementById('subsidy-limit').value = localStorage.getItem('fuel_subsidy_limit') || 0;
     
+    // 오늘 날짜 설정 (04시 기준)
     const todayStr = Utils.getTodayString();
     const nowTime = Utils.getCurrentTimeString();
     const statToday = Utils.getStatisticalDate(todayStr, nowTime);
@@ -51,7 +56,7 @@ function initialSetup() {
     UI.resetForm();
     updateAllDisplays();
 
-    // [OCR] 파일 입력 이벤트
+    // [OCR] 파일 입력 이벤트 리스너
     const ocrInput = document.getElementById('ocr-input');
     if (ocrInput) {
         ocrInput.addEventListener('change', (e) => {
@@ -61,12 +66,13 @@ function initialSetup() {
         });
     }
 
-    // [추가] 실시간 금액 계산 (수동 입력 시)
+    // [OCR] 실시간 금액 계산 로직
     const updateCalculations = () => {
         const lit = parseFloat(document.getElementById('ocr-liters').value) || 0;
         const price = parseInt(document.getElementById('ocr-price').value) || 0;
         let cost = parseInt(document.getElementById('ocr-cost').value) || 0;
 
+        // 리터와 단가를 입력 중일 때는 총액 자동 계산
         if (document.activeElement === document.getElementById('ocr-liters') || 
             document.activeElement === document.getElementById('ocr-price')) {
             if (lit > 0 && price > 0) {
@@ -87,7 +93,7 @@ function initialSetup() {
         if (el) el.addEventListener('input', updateCalculations);
     });
 
-    // [추가] 재인식(초기화) 버튼
+    // [OCR] 재인식(초기화) 버튼
     const btnRetryOcr = document.getElementById('btn-retry-ocr');
     if (btnRetryOcr) {
         btnRetryOcr.addEventListener('click', () => {
@@ -106,7 +112,7 @@ function initialSetup() {
         });
     }
 
-    // [OCR] 저장하기 버튼 이벤트
+    // [OCR] 저장하기 버튼
     const btnSaveOcr = document.getElementById('btn-save-ocr');
     if (btnSaveOcr) {
         btnSaveOcr.addEventListener('click', () => {
@@ -138,7 +144,7 @@ function initialSetup() {
             });
 
             Utils.showToast("영수증 내역이 저장되었습니다.");
-            btnRetryOcr.click(); 
+            btnRetryOcr.click(); // 초기화
             
             updateAllDisplays();
             Stats.displaySubsidyRecords();
@@ -181,6 +187,7 @@ function moveDate(offset) {
 // 1. 운행 취소
 UI.els.btnTripCancel.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
+    // '운행취소' 타입 사용
     Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData, type: '운행취소' });
     Utils.showToast('저장되었습니다.');
     UI.resetForm();
@@ -219,7 +226,7 @@ UI.els.btnEndTrip.addEventListener('click', () => {
     updateAllDisplays();
 });
 
-// 4. 일반 저장 (지출, 수입 등)
+// 4. 일반 저장 (지출, 수입, 주유소, 소모품)
 UI.els.btnSaveGeneral.addEventListener('click', () => {
     const formData = UI.getFormDataWithoutTime();
     
@@ -228,7 +235,7 @@ UI.els.btnSaveGeneral.addEventListener('click', () => {
         return;
     }
 
-    // [추가] 지출/수입 항목 저장 (자동완성용)
+    // 지출/수입 항목 자동완성 목록에 추가
     if (formData.type === '지출' || formData.type === '수입') {
         if (formData.expenseItem) Data.updateExpenseItemData(formData.expenseItem);
     }
@@ -236,7 +243,6 @@ UI.els.btnSaveGeneral.addEventListener('click', () => {
     Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...formData });
     Utils.showToast('저장되었습니다.');
     
-    // 저장 후 자동완성 목록 갱신
     UI.populateExpenseDatalist();
 
     const statDate = Utils.getStatisticalDate(UI.els.dateInput.value, UI.els.timeInput.value);
@@ -244,6 +250,8 @@ UI.els.btnSaveGeneral.addEventListener('click', () => {
     
     UI.resetForm();
     updateAllDisplays();
+    
+    if(formData.type === '주유소') Stats.displaySubsidyRecords();
 });
 
 // 5. 수정 완료
@@ -254,13 +262,14 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
         const original = Data.MEM_RECORDS[index];
         const formData = UI.getFormDataWithoutTime();
         
+        // 운송 구간 데이터 학습
         if (formData.type === '화물운송' && formData.from && formData.to) {
             const key = `${formData.from}-${formData.to}`;
             if(formData.distance > 0) Data.MEM_DISTANCES[key] = formData.distance;
             if(formData.income > 0) Data.MEM_FARES[key] = formData.income;
         }
         
-        // 수정 시에도 항목 저장
+        // 지출/수입 항목 데이터 학습
         if (formData.type === '지출' || formData.type === '수입') {
             if (formData.expenseItem) Data.updateExpenseItemData(formData.expenseItem);
         }
@@ -275,6 +284,7 @@ UI.els.btnUpdateRecord.addEventListener('click', () => {
         
         UI.resetForm();
         updateAllDisplays();
+        if(formData.type === '주유소') Stats.displaySubsidyRecords();
     }
 });
 
@@ -361,12 +371,14 @@ UI.els.addressDisplay.addEventListener('click', (e) => {
 UI.els.fuelUnitPriceInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.fuelLitersInput.addEventListener('input', () => { const p=parseFloat(UI.els.fuelUnitPriceInput.value)||0, l=parseFloat(UI.els.fuelLitersInput.value)||0; if(p&&l) UI.els.costInput.value=(p*l/10000).toFixed(2); });
 UI.els.typeSelect.addEventListener('change', UI.toggleUI);
+
 document.getElementById('refresh-btn').addEventListener('click', () => { UI.resetForm(); location.reload(); });
 
 document.getElementById('today-date-picker').addEventListener('change', () => Stats.displayTodayRecords(document.getElementById('today-date-picker').value));
 document.getElementById('prev-day-btn').addEventListener('click', () => moveDate(-1));
 document.getElementById('next-day-btn').addEventListener('click', () => moveDate(1));
 
+// 테이블 클릭 (주소 복사)
 document.querySelector('#today-records-table tbody').addEventListener('click', (e) => {
     const target = e.target.closest('.location-clickable');
     if(target) {
@@ -384,6 +396,7 @@ document.querySelector('#today-records-table tbody').addEventListener('click', (
     }
 });
 
+// 탭 전환
 document.querySelectorAll('.tab-btn').forEach(btn => { 
     btn.addEventListener("click", event => { 
         if(btn.parentElement.classList.contains('view-tabs')) { 
@@ -397,6 +410,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     }) 
 });
 
+// 설정 페이지 전환
 const mainPage = document.getElementById('main-page');
 const settingsPage = document.getElementById('settings-page');
 const goToSettingsBtn = document.getElementById('go-to-settings-btn');
@@ -418,6 +432,7 @@ backToMainBtn.addEventListener("click", () => {
     updateAllDisplays(); 
 });
 
+// 아코디언 메뉴
 [document.getElementById('toggle-center-management'), document.getElementById('toggle-batch-apply'), 
  document.getElementById('toggle-subsidy-management'), document.getElementById('toggle-mileage-management'), 
  document.getElementById('toggle-data-management'), document.getElementById('toggle-print-management')]
@@ -435,6 +450,7 @@ backToMainBtn.addEventListener("click", () => {
     }); 
 });
 
+// 지역 관리
 document.getElementById('center-search-input').addEventListener('input', () => UI.displayCenterList(document.getElementById('center-search-input').value));
 document.getElementById('add-center-btn').addEventListener('click', () => { 
     const n = document.getElementById('new-center-name').value.trim(); 
@@ -447,6 +463,7 @@ document.getElementById('add-center-btn').addEventListener('click', () => {
     } 
 });
 
+// 일괄 적용
 document.getElementById('batch-apply-btn').addEventListener("click", () => { 
     const from = document.getElementById('batch-from-center').value.trim(); 
     const to = document.getElementById('batch-to-center').value.trim(); 
@@ -465,9 +482,11 @@ document.getElementById('batch-apply-btn').addEventListener("click", () => {
     } 
 });
 
+// 설정 저장
 document.getElementById('subsidy-save-btn').addEventListener('click', () => { localStorage.setItem('fuel_subsidy_limit', document.getElementById('subsidy-limit').value); Utils.showToast('저장됨'); });
 document.getElementById('mileage-correction-save-btn').addEventListener('click', () => { localStorage.setItem('mileage_correction', document.getElementById('mileage-correction').value); Utils.showToast('저장됨'); Stats.displayCumulativeData(); });
 
+// 데이터 관리
 document.getElementById('export-json-btn').addEventListener('click', () => { 
     const data = { records: Data.MEM_RECORDS, centers: Data.MEM_CENTERS, locations: Data.MEM_LOCATIONS, fares: Data.MEM_FARES, distances: Data.MEM_DISTANCES, costs: Data.MEM_COSTS, subsidy: localStorage.getItem('fuel_subsidy_limit'), correction: localStorage.getItem('mileage_correction'), expenseItems: Data.MEM_EXPENSE_ITEMS }; 
     const b = new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); 
@@ -488,13 +507,14 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
         if(d.costs) localStorage.setItem('saved_costs', JSON.stringify(d.costs)); 
         if(d.subsidy) localStorage.setItem('fuel_subsidy_limit', d.subsidy); 
         if(d.correction) localStorage.setItem('mileage_correction', d.correction); 
-        if(d.expenseItems) localStorage.setItem('saved_expense_items', JSON.stringify(d.expenseItems)); // [추가]
+        if(d.expenseItems) localStorage.setItem('saved_expense_items', JSON.stringify(d.expenseItems));
         alert('복원완료'); location.reload(); 
     }; 
     r.readAsText(e.target.files[0]); 
 });
 document.getElementById('clear-btn').addEventListener('click', () => { if(confirm('전체삭제?')) { localStorage.clear(); location.reload(); }});
 
+// 출력
 const getPrintEls = () => ({ y: document.getElementById('print-year-select').value, m: document.getElementById('print-month-select').value });
 document.getElementById('print-first-half-btn').addEventListener('click', () => { const p = getPrintEls(); Stats.generatePrintView(p.y, p.m, 'first', false) });
 document.getElementById('print-second-half-btn').addEventListener('click', () => { const p = getPrintEls(); Stats.generatePrintView(p.y, p.m, 'second', false) });

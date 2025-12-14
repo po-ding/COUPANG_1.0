@@ -1,3 +1,5 @@
+// --- START OF FILE js/utils.js ---
+
 export const getTodayString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -25,11 +27,22 @@ export function showToast(msg) {
 }
 
 export function copyTextToClipboard(text, msg) {
-    navigator.clipboard.writeText(text).then(() => showToast(msg))
+    if (!navigator.clipboard) {
+        // 보안 컨텍스트 아닐 때 fallback
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast(msg || '복사되었습니다.'); } 
+        catch (e) { console.error(e); }
+        document.body.removeChild(ta);
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => showToast(msg || '복사되었습니다.'))
     .catch(err => console.log('복사 실패:', err));
 }
 
-// [완벽 수정] 04시 기준 날짜 계산 (자정/시차 문제 원천 차단)
+// 04시 기준 날짜 계산
 export function getStatisticalDate(dateStr, timeStr) {
     if (!dateStr || !timeStr) return dateStr;
 

@@ -1,3 +1,5 @@
+// --- START OF FILE js/data.js ---
+
 export let MEM_RECORDS = [];
 export let MEM_LOCATIONS = {};
 export let MEM_FARES = {};
@@ -13,38 +15,43 @@ export function setRecords(newRecords) {
 }
 
 export function loadAllData() {
-    const records = JSON.parse(localStorage.getItem('records')) || [];
-    MEM_RECORDS.length = 0;
-    MEM_RECORDS.push(...records);
+    try {
+        const records = JSON.parse(localStorage.getItem('records')) || [];
+        MEM_RECORDS.length = 0;
+        if (Array.isArray(records)) MEM_RECORDS.push(...records);
 
-    const locs = JSON.parse(localStorage.getItem('saved_locations')) || {};
-    for (let k in MEM_LOCATIONS) delete MEM_LOCATIONS[k];
-    Object.assign(MEM_LOCATIONS, locs);
+        const locs = JSON.parse(localStorage.getItem('saved_locations')) || {};
+        for (let k in MEM_LOCATIONS) delete MEM_LOCATIONS[k];
+        Object.assign(MEM_LOCATIONS, locs);
 
-    const fares = JSON.parse(localStorage.getItem('saved_fares')) || {};
-    for (let k in MEM_FARES) delete MEM_FARES[k];
-    Object.assign(MEM_FARES, fares);
+        const fares = JSON.parse(localStorage.getItem('saved_fares')) || {};
+        for (let k in MEM_FARES) delete MEM_FARES[k];
+        Object.assign(MEM_FARES, fares);
 
-    const centers = JSON.parse(localStorage.getItem('logistics_centers')) || [];
-    MEM_CENTERS.length = 0;
-    MEM_CENTERS.push(...centers);
-    if (MEM_CENTERS.length === 0) MEM_CENTERS.push('안성', '안산', '용인', '이천', '인천');
-    MEM_CENTERS.sort(); 
+        const centers = JSON.parse(localStorage.getItem('logistics_centers')) || [];
+        MEM_CENTERS.length = 0;
+        if (Array.isArray(centers)) MEM_CENTERS.push(...centers);
+        
+        if (MEM_CENTERS.length === 0) MEM_CENTERS.push('안성', '안산', '용인', '이천', '인천');
+        MEM_CENTERS.sort(); 
 
-    const dists = JSON.parse(localStorage.getItem('saved_distances')) || {};
-    for (let k in MEM_DISTANCES) delete MEM_DISTANCES[k];
-    Object.assign(MEM_DISTANCES, dists);
+        const dists = JSON.parse(localStorage.getItem('saved_distances')) || {};
+        for (let k in MEM_DISTANCES) delete MEM_DISTANCES[k];
+        Object.assign(MEM_DISTANCES, dists);
 
-    const costs = JSON.parse(localStorage.getItem('saved_costs')) || {};
-    for (let k in MEM_COSTS) delete MEM_COSTS[k];
-    Object.assign(MEM_COSTS, costs);
+        const costs = JSON.parse(localStorage.getItem('saved_costs')) || {};
+        for (let k in MEM_COSTS) delete MEM_COSTS[k];
+        Object.assign(MEM_COSTS, costs);
 
-    // [추가] 지출항목 불러오기
-    const items = JSON.parse(localStorage.getItem('saved_expense_items')) || [];
-    MEM_EXPENSE_ITEMS.length = 0;
-    MEM_EXPENSE_ITEMS.push(...items);
+        // [추가] 지출항목 불러오기
+        const items = JSON.parse(localStorage.getItem('saved_expense_items')) || [];
+        MEM_EXPENSE_ITEMS.length = 0;
+        if (Array.isArray(items)) MEM_EXPENSE_ITEMS.push(...items);
 
-    syncHistoryToAutocompleteDB();
+        syncHistoryToAutocompleteDB();
+    } catch (e) {
+        console.error("데이터 로드 중 오류:", e);
+    }
 }
 
 export function saveData() {

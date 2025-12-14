@@ -1,8 +1,10 @@
+// --- START OF FILE js/stats.js ---
+
 import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
 import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
 import { editRecord } from './ui.js';
 
-// [수정] 페이징 처리를 위한 변수 선언 추가
+// [수정] 페이징 처리를 위한 변수 선언 추가 (모듈 최상단)
 let displayedSubsidyCount = 0;
 
 // 안전한 숫자 변환 함수 (문자열, null, undefined 처리)
@@ -37,7 +39,8 @@ export function calculateTotalDuration(records) {
 
 // 메인 화면 요약 함수
 export function createSummaryHTML(title, records) {
-    const validRecords = records.filter(r => r.type !== '이동취소' && r.type !== '운행종료');
+    // [수정] '이동취소' -> '운행취소'로 용어 통일
+    const validRecords = records.filter(r => r.type !== '운행취소' && r.type !== '운행종료');
     let totalIncome = 0, totalExpense = 0, totalDistance = 0, totalTripCount = 0;
     let totalFuelCost = 0, totalFuelLiters = 0;
     
@@ -172,7 +175,7 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// [수정] 주유 기록 표시 함수
+// [수정] 주유 기록 표시 함수 (페이징 변수 사용)
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
@@ -234,10 +237,12 @@ export function displayDailyRecords() {
     });
     Object.keys(recordsByDate).sort().reverse().forEach(date => {
         const dayData = recordsByDate[date];
+        // [수정] '이동취소' -> '운행취소'
         const transport = dayData.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
         dayData.records.forEach(r => {
-            if(r.type !== '운행종료' && r.type !== '이동취소') { inc += safeInt(r.income); exp += safeInt(r.cost); }
+            // [수정] '이동취소' -> '운행취소'
+            if(r.type !== '운행종료' && r.type !== '운행취소') { inc += safeInt(r.income); exp += safeInt(r.cost); }
             if(r.type === '화물운송') { dist += safeFloat(r.distance); count++; }
         });
         if (count === 0) return;
@@ -267,9 +272,14 @@ export function displayWeeklyRecords() {
     });
     Object.keys(weeks).forEach(w => {
         const data = weeks[w];
+        // [수정] '이동취소' -> '운행취소'
         const transport = data.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc = 0, exp = 0, dist = 0, count = 0;
-        data.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} });
+        data.forEach(r => { 
+            // [수정] '이동취소' -> '운행취소'
+            if(r.type!=='운행종료'&&r.type!=='운행취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} 
+            if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} 
+        });
         const dates = data.map(r => new Date(getStatisticalDate(r.date, r.time)).getDate());
         const tr = document.createElement('tr');
         tr.innerHTML = `<td data-label="주차">${w}주차</td><td data-label="기간">${Math.min(...dates)}일~${Math.max(...dates)}일</td><td data-label="수입">${formatToManwon(inc)}</td><td data-label="지출">${formatToManwon(exp)}</td><td data-label="정산">${formatToManwon(inc-exp)}</td><td data-label="거리">${dist.toFixed(1)}</td><td data-label="이동">${count}</td><td data-label="소요">${calculateTotalDuration(transport)}</td>`;
@@ -293,9 +303,14 @@ export function displayMonthlyRecords() {
     });
     Object.keys(months).sort().reverse().forEach(m => {
         const data = months[m];
+        // [수정] '이동취소' -> '운행취소'
         const transport = data.records.filter(r => ['화물운송', '공차이동', '대기', '운행종료', '운행취소'].includes(r.type));
         let inc=0,exp=0,dist=0,count=0;
-         data.records.forEach(r => { if(r.type!=='운행종료'&&r.type!=='이동취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} });
+         data.records.forEach(r => { 
+            // [수정] '이동취소' -> '운행취소'
+            if(r.type!=='운행종료'&&r.type!=='운행취소'){inc+=safeInt(r.income);exp+=safeInt(r.cost);} 
+            if(r.type==='화물운송'){dist+=safeFloat(r.distance);count++;} 
+        });
         const tr = document.createElement('tr');
         tr.innerHTML = `<td data-label="월">${parseInt(m.substring(5))}월</td><td data-label="수입">${formatToManwon(inc)}</td><td data-label="지출">${formatToManwon(exp)}</td><td data-label="정산">${formatToManwon(inc-exp)}</td><td data-label="거리">${dist.toFixed(1)}</td><td data-label="이동">${count}</td><td data-label="소요">${calculateTotalDuration(transport)}</td>`;
         monthlyTbody.appendChild(tr);
@@ -307,7 +322,8 @@ export function displayCurrentMonthData() {
     let checkDate = new Date();
     if(checkDate.getHours() < 4) checkDate.setDate(checkDate.getDate() - 1);
     const currentPeriod = checkDate.toISOString().slice(0, 7); 
-    const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(currentPeriod) && r.type !== '이동취소' && r.type !== '운행종료'); 
+    // [수정] '이동취소' -> '운행취소'
+    const monthRecords = MEM_RECORDS.filter(r => getStatisticalDate(r.date, r.time).startsWith(currentPeriod) && r.type !== '운행취소' && r.type !== '운행종료'); 
     document.getElementById('current-month-title').textContent = `${parseInt(currentPeriod.split('-')[1])}월 실시간 요약 (04시 기준)`; 
     let inc = 0, exp = 0, count = 0, dist = 0, liters = 0; 
     monthRecords.forEach(r => { 
@@ -334,7 +350,8 @@ export function displayCurrentMonthData() {
 }
 
 export function displayCumulativeData() {
-    const records = MEM_RECORDS.filter(r => r.type !== '이동취소' && r.type !== '운행종료');
+    // [수정] '이동취소' -> '운행취소'
+    const records = MEM_RECORDS.filter(r => r.type !== '운행취소' && r.type !== '운행종료');
     let inc = 0, exp = 0, count = 0, dist = 0, liters = 0;
     records.forEach(r => {
         inc += safeInt(r.income); exp += safeInt(r.cost);
@@ -393,7 +410,7 @@ export function renderMileageSummary(period = 'monthly') {
     document.getElementById('mileage-summary-cards').innerHTML = h;
 }
 
-// [핵심] 운송내역 출력 (순수익 오류 수정 & 원 단위 표시)
+// [핵심] 운송내역 출력
 export function generatePrintView(year, month, period, isDetailed) {
     const sDay = period === 'second' ? 16 : 1;
     const eDay = period === 'first' ? 15 : 31;
@@ -407,6 +424,7 @@ export function generatePrintView(year, month, period, isDetailed) {
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
     // 2. 카테고리 분리
+    // [수정] '이동취소' -> '운행취소'
     const transportList = target.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     const fuelList = target.filter(r => r.type === '주유소');
     const expenseList = target.filter(r => ['지출', '소모품'].includes(r.type));
