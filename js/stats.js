@@ -398,40 +398,54 @@ export function generatePrintView(year, month, period, isDetailed) {
     const eDay = period === 'first' ? 15 : 31;
     const periodStr = period === 'full' ? '1일 ~ 말일' : `${sDay}일 ~ ${eDay===15?15:'말'}일`;
     
+    // 1. 기간 내 기록 필터링
     const target = MEM_RECORDS.filter(r => { 
         const statDate = getStatisticalDate(r.date, r.time);
         const d = new Date(statDate); 
         return statDate.startsWith(`${year}-${month}`) && d.getDate() >= sDay && d.getDate() <= eDay && r.type !== '운행종료'; 
     }).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
+    // 2. 카테고리별 분류
+    const transportList = target.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
     const fuelList = target.filter(r => r.type === '주유소');
-    const mainList = target.filter(r => r.type !== '주유소'); // 여기엔 수입, 지출, 화물운송 등이 포함됨
+    const expenseList = target.filter(r => ['지출', '소모품'].includes(r.type));
+    const incomeList = target.filter(r => r.type === '수입');
 
-    // [수정] 메인 리스트에서 수입/지출 내역 구분
-    const transport = mainList.filter(r => ['화물운송', '대기', '운행취소'].includes(r.type));
-    let inc=0, exp=0, dist=0;
-    
-    mainList.forEach(r => { inc += (r.income||0); exp += (r.cost||0); });
-    transport.forEach(r => dist += (r.distance||0));
-    
-    // [수정] 주유 통계 계산
-    let totalFuelCost = 0;
-    let totalSubsidy = 0;
-    let totalFuelLiters = 0;
-
-    fuelList.forEach(r => {
-        totalFuelCost += (r.cost || 0);
-        totalSubsidy += (r.subsidy || 0);
-        totalFuelLiters += (r.liters || 0);
+    // 3. 통계 계산
+    // A. 운송 (수입, 비용은 보통 0이지만 체크)
+    let transInc = 0, transExp = 0, transDist = 0;
+    transportList.forEach(r => {
+        transInc += (r.income || 0);
+        transExp += (r.cost || 0); // 운송 중 발생한 비용?
+        transDist += (r.distance || 0);
     });
-    
-    const totalFuelNet = totalFuelCost - totalSubsidy;
-    // 최종 순수익: (운송수입 + 기타수입) - (운송지출 + 기타지출 + 실주유비)
-    const finalNet = inc - exp - totalFuelNet;
+
+    // B. 주유 (비용, 보조금, 실비용)
+    let fuelTotalCost = 0, fuelTotalSubsidy = 0, fuelTotalLiters = 0;
+    fuelList.forEach(r => {
+        fuelTotalCost += (r.cost || 0);
+        fuelTotalSubsidy += (r.subsidy || 0);
+        fuelTotalLiters += (r.liters || 0);
+    });
+    const fuelNetCost = fuelTotalCost - fuelTotalSubsidy;
+
+    // C. 일반 지출
+    let genExp = 0;
+    expenseList.forEach(r => genExp += (r.cost || 0));
+
+    // D. 일반 수입
+    let genInc = 0;
+    incomeList.forEach(r => genInc += (r.income || 0));
+
+    // E. 최종 순수익 계산
+    // 총수입 = 운송수입 + 일반수입
+    // 총지출 = 운송지출 + 일반지출 + 실주유비
+    const totalRevenue = transInc + genInc;
+    const totalSpend = transExp + genExp + fuelNetCost;
+    const finalProfit = totalRevenue - totalSpend;
 
     const workDays = new Set(
-        target.filter(r => r.type === '화물운송')
-              .map(r => getStatisticalDate(r.date, r.time))
+        transportList.map(r => getStatisticalDate(r.date, r.time))
     ).size;
 
     const w = window.open('','_blank');
@@ -461,13 +475,14 @@ export function generatePrintView(year, month, period, isDetailed) {
         <h2>${year}년 ${month}월 ${periodStr} 운송 기록 (04시 기준)</h2>
         
         <div class="summary">
-            <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transport.length}건 | 운행거리: ${dist.toFixed(1)}km</p>
-            <p>운송/기타 수입: ${formatToManwon(inc)}만 | 운송/기타 지출: ${formatToManwon(exp)}만</p>
-            <p>주유금액: ${formatToManwon(totalFuelCost)}만 | 보조금: ${formatToManwon(totalSubsidy)}만 | <span class="txt-red">실주유비: ${formatToManwon(totalFuelNet)}만</span> (리터: ${totalFuelLiters.toFixed(1)}L)</p>
-            <p class="txt-blue" style="font-size: 1.2em; margin-top: 10px;">최종 순수익: ${formatToManwon(finalNet)}만원</p>
+            <p><strong>[요약]</strong> 근무일: ${workDays}일 | 운행건수: ${transportList.length}건 | 운행거리: ${transDist.toFixed(1)}km</p>
+            <p>총 수입(운송+기타): ${formatToManwon(totalRevenue)}만 | 일반 지출: ${formatToManwon(transExp + genExp)}만</p>
+            <p>주유금액: ${formatToManwon(fuelTotalCost)}만 | 보조금: ${formatToManwon(fuelTotalSubsidy)}만 | <span class="txt-red">실주유비: ${formatToManwon(fuelNetCost)}만</span></p>
+            <p class="txt-blue" style="font-size: 1.2em; margin-top: 10px;">최종 순수익: ${formatToManwon(finalProfit)}만원</p>
         </div>
 
-        <h3>1. 운송 및 일반 내역</h3>
+        <!-- 1. 운송 내역 -->
+        <h3>1. 운송 내역</h3>
         <table>
             <thead>
                 <tr>
@@ -475,38 +490,34 @@ export function generatePrintView(year, month, period, isDetailed) {
                     <th class="col-location">상차지</th>
                     <th class="col-location">하차지</th>
                     <th class="col-note">내용</th>
-                    ${isDetailed ? '<th>거리</th><th>수입</th><th>지출</th>' : ''}
+                    ${isDetailed ? '<th>거리</th><th>수입</th>' : ''}
                 </tr>
             </thead>
             <tbody>`;
             
-    (isDetailed ? mainList : transport).forEach(r => {
+    if (transportList.length === 0) h += `<tr><td colspan="${isDetailed?6:4}">내역 없음</td></tr>`;
+    
+    transportList.forEach(r => {
         const statDate = getStatisticalDate(r.date, r.time);
-        let borderClass = ''; 
-        if(lastDate !== '' && lastDate !== statDate) borderClass = 'class="date-border"'; 
-        lastDate = statDate;
+        let dateDisplay = statDate.substring(5);
         
-        let from = '', to = '', desc = r.type;
-        if(r.from || r.to) { from = r.from || ''; to = r.to || ''; desc = ''; } 
-        else { from = r.expenseItem || r.supplyItem || ''; }
-        
+        let from = r.from || '';
+        let to = r.to || '';
+        let desc = r.type;
         if(r.type === '대기') desc = '대기';
         if(r.type === '운행취소') desc = '취소';
-        // [추가] 수입 타입 처리
-        if(r.type === '수입') desc = '기타수입';
 
-        let dateDisplay = statDate.substring(5);
-
-        h += `<tr ${borderClass}>
+        h += `<tr>
                 <td>${dateDisplay}</td>
                 <td class="left-align">${from}</td>
                 <td class="left-align">${to}</td>
                 <td>${desc}</td>
-                ${isDetailed ? `<td>${r.distance||'-'}</td><td>${formatToManwon(r.income)}</td><td>${formatToManwon(r.cost)}</td>` : ''}
+                ${isDetailed ? `<td>${r.distance||'-'}</td><td>${formatToManwon(r.income)}</td>` : ''}
               </tr>`;
     });
     h += `</tbody></table>`;
 
+    // 2. 주유 및 정비 내역
     if (fuelList.length > 0) {
         h += `<h3>2. 주유 및 정비 내역</h3>
               <table>
@@ -539,6 +550,58 @@ export function generatePrintView(year, month, period, isDetailed) {
                     <td style="color:red;">${subsidy > 0 ? '-' + subsidy.toLocaleString() : '0'} 원</td>
                     <td style="font-weight:bold;">${netCost.toLocaleString()} 원</td>
                    </tr>`;
+        });
+        h += `</tbody></table>`;
+    }
+
+    // 3. 지출 내역
+    if (expenseList.length > 0) {
+        h += `<h3>3. 지출 내역</h3>
+              <table>
+                <thead>
+                    <tr>
+                        <th class="col-date">날짜</th>
+                        <th>내용 (적요)</th>
+                        <th>지출금액</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        expenseList.forEach(r => {
+            const statDate = getStatisticalDate(r.date, r.time);
+            let dateDisplay = statDate.substring(5);
+            let item = r.expenseItem || r.supplyItem || r.type;
+            
+            h += `<tr>
+                    <td>${dateDisplay}</td>
+                    <td class="left-align">${item}</td>
+                    <td>${(r.cost||0).toLocaleString()} 원</td>
+                  </tr>`;
+        });
+        h += `</tbody></table>`;
+    }
+
+    // 4. 수입 내역
+    if (incomeList.length > 0) {
+        h += `<h3>4. 수입 내역</h3>
+              <table>
+                <thead>
+                    <tr>
+                        <th class="col-date">날짜</th>
+                        <th>내용 (적요)</th>
+                        <th>수입금액</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        incomeList.forEach(r => {
+            const statDate = getStatisticalDate(r.date, r.time);
+            let dateDisplay = statDate.substring(5);
+            let item = r.expenseItem || r.type; // 수입도 expenseItem 필드 재사용했음
+            
+            h += `<tr>
+                    <td>${dateDisplay}</td>
+                    <td class="left-align">${item}</td>
+                    <td>${(r.income||0).toLocaleString()} 원</td>
+                  </tr>`;
         });
         h += `</tbody></table>`;
     }
