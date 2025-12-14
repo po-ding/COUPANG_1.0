@@ -2,6 +2,9 @@ import { formatToManwon, getStatisticalDate, getTodayString } from './utils.js';
 import { MEM_RECORDS, MEM_LOCATIONS } from './data.js';
 import { editRecord } from './ui.js';
 
+// [수정] 페이징 처리를 위한 변수 선언 추가
+let displayedSubsidyCount = 0;
+
 // 안전한 숫자 변환 함수 (문자열, null, undefined 처리)
 function safeInt(value) {
     if (!value) return 0;
@@ -169,24 +172,42 @@ export function displayTodayRecords(date) {
     todaySummaryDiv.innerHTML = createSummaryHTML('오늘의 기록 (04시 기준)', dayRecords);
 }
 
-// ... (displaySubsidyRecords, displayDailyRecords, displayWeeklyRecords, displayMonthlyRecords, displayCurrentMonthData, displayCumulativeData, renderMileageSummary 함수는 기존과 동일하게 유지 - safeInt 적용만 권장되나 로직 흐름상 큰 문제 없음) ...
-// 편의상 생략된 부분은 기존 코드를 그대로 사용하시면 됩니다. 여기서는 분량상 생략합니다. 
-// (실제 파일 적용 시에는 이전 답변의 해당 함수들을 그대로 두거나 safeInt만 적용하시면 됩니다.)
-
+// [수정] 주유 기록 표시 함수
 export function displaySubsidyRecords(append = false) {
     const subsidyRecordsList = document.getElementById('subsidy-records-list');
     const subsidyLoadMoreContainer = document.getElementById('subsidy-load-more-container');
     const fuelRecords = MEM_RECORDS.filter(r => r.type === '주유소').sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-    if (!append) { displayedSubsidyCount = 0; subsidyRecordsList.innerHTML = ''; }
-    if (fuelRecords.length === 0) { subsidyRecordsList.innerHTML = '<p class="note" style="text-align:center; padding:1em;">주유 내역이 없습니다.</p>'; subsidyLoadMoreContainer.innerHTML = ''; return; }
+    
+    if (!append) { 
+        displayedSubsidyCount = 0; 
+        subsidyRecordsList.innerHTML = ''; 
+    }
+    
+    if (fuelRecords.length === 0) { 
+        subsidyRecordsList.innerHTML = '<p class="note" style="text-align:center; padding:1em;">주유 내역이 없습니다.</p>'; 
+        subsidyLoadMoreContainer.innerHTML = ''; 
+        return; 
+    }
+    
     const nextBatch = fuelRecords.slice(displayedSubsidyCount, displayedSubsidyCount + 10);
     nextBatch.forEach(r => {
         const div = document.createElement('div');
-        div.className = 'center-item'; div.style.marginBottom = '5px';
-        div.innerHTML = `<div class="info"><span class="center-name">${r.date} <span class="note">(${r.brand || '기타'})</span></span><span style="font-weight:bold;">${formatToManwon(safeInt(r.cost))} 만원</span></div><div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.9em; color:#555;"><span>주유량: ${parseFloat(r.liters).toFixed(2)} L</span><span>단가: ${r.unitPrice} 원</span></div>`;
+        div.className = 'center-item'; 
+        div.style.marginBottom = '5px';
+        div.innerHTML = `
+            <div class="info">
+                <span class="center-name">${r.date} <span class="note">(${r.brand || '기타'})</span></span>
+                <span style="font-weight:bold;">${formatToManwon(safeInt(r.cost))} 만원</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.9em; color:#555;">
+                <span>주유량: ${parseFloat(r.liters).toFixed(2)} L</span>
+                <span>단가: ${r.unitPrice} 원</span>
+            </div>`;
         subsidyRecordsList.appendChild(div);
     });
+    
     displayedSubsidyCount += nextBatch.length;
+    
     if (displayedSubsidyCount < fuelRecords.length) { 
         subsidyLoadMoreContainer.innerHTML = '<button class="load-more-btn" style="margin-top:10px; padding:10px;">▼ 더 보기</button>'; 
         subsidyLoadMoreContainer.querySelector('button').onclick = () => displaySubsidyRecords(true); 
