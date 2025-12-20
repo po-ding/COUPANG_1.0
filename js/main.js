@@ -8,70 +8,46 @@ function initialSetup() {
     UI.resetForm();
     UI.renderQuickShortcuts();
 
-    // [중요] 설정 페이지 이동 이벤트
-    const settingsBtn = document.getElementById('go-to-settings-btn');
-    const backBtn = document.getElementById('back-to-main-btn');
-    const mainPage = document.getElementById('main-page');
-    const settingsPage = document.getElementById('settings-page');
-
-    if(settingsBtn) {
-        settingsBtn.onclick = () => {
-            mainPage.classList.add('hidden');
-            settingsPage.classList.remove('hidden');
-            settingsBtn.classList.add('hidden');
-            backBtn.classList.remove('hidden');
-            Stats.displayCumulativeData();
-            Stats.displayCurrentMonthData();
-        };
-    }
-
-    if(backBtn) {
-        backBtn.onclick = () => {
-            mainPage.classList.remove('hidden');
-            settingsPage.classList.add('hidden');
-            settingsBtn.classList.remove('hidden');
-            backBtn.classList.add('hidden');
-            updateAllDisplays();
-        };
-    }
-
-    // 아코디언 메뉴 이벤트
-    const accordionHeader = document.getElementById('toggle-center-management');
-    if(accordionHeader) {
-        accordionHeader.onclick = () => {
-            const body = document.getElementById('center-management-body');
-            body.classList.toggle('hidden');
-            if(!body.classList.contains('hidden')) UI.displayCenterList();
-        };
-    }
-    
-    // 타 아코디언들
-    ['toggle-batch-apply', 'toggle-subsidy-management', 'toggle-data-management'].forEach(id => {
-        const h = document.getElementById(id);
-        if(h) h.onclick = () => h.nextElementSibling.classList.toggle('hidden');
+    // 설정 버튼 (무조건 작동하도록 직접 연결)
+    document.getElementById('go-to-settings-btn').addEventListener('click', () => {
+        document.getElementById('main-page').classList.add('hidden');
+        document.getElementById('settings-page').classList.remove('hidden');
+        document.getElementById('go-to-settings-btn').classList.add('hidden');
+        document.getElementById('back-to-main-btn').classList.remove('hidden');
     });
 
-    // 기록 저장 이벤트
-    if(UI.els.btnStartTrip) {
-        UI.els.btnStartTrip.onclick = () => {
-            const fd = UI.getFormDataWithoutTime ? UI.getFormDataWithoutTime() : { 
-                type: UI.els.typeSelect.value, 
-                from: UI.els.fromCenterInput.value, 
-                to: UI.els.toCenterInput.value 
-            };
-            Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...fd });
-            Utils.showToast('저장됨');
-            UI.resetForm();
-            updateAllDisplays();
-        };
-    }
+    document.getElementById('back-to-main-btn').addEventListener('click', () => {
+        document.getElementById('main-page').classList.remove('hidden');
+        document.getElementById('settings-page').classList.add('hidden');
+        document.getElementById('go-to-settings-btn').classList.remove('hidden');
+        document.getElementById('back-to-main-btn').classList.add('hidden');
+        updateAllDisplays();
+    });
 
-    // 기타 설정
-    document.getElementById('refresh-btn').onclick = () => location.reload();
-    UI.els.typeSelect.onchange = UI.toggleUI;
-    
-    document.getElementById('today-date-picker').value = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
-    document.getElementById('today-date-picker').onchange = () => updateAllDisplays();
+    // 설정창 아코디언
+    document.getElementById('toggle-center-management').addEventListener('click', () => {
+        const body = document.getElementById('center-management-body');
+        body.classList.toggle('hidden');
+        if(!body.classList.contains('hidden')) UI.displayCenterList();
+    });
+
+    // 시작 버튼
+    document.getElementById('btn-start-trip').addEventListener('click', () => {
+        const type = document.getElementById('type').value;
+        const from = document.getElementById('from-center').value;
+        const to = document.getElementById('to-center').value;
+        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), type, from, to });
+        Utils.showToast('저장됨');
+        UI.resetForm();
+        updateAllDisplays();
+    });
+
+    document.getElementById('refresh-btn').addEventListener('click', () => location.reload());
+    document.getElementById('type').addEventListener('change', UI.toggleUI);
+
+    const todayDate = document.getElementById('today-date-picker');
+    todayDate.value = Utils.getTodayString();
+    todayDate.addEventListener('change', () => updateAllDisplays());
 
     updateAllDisplays();
 }

@@ -11,49 +11,11 @@ const REGIONS = {
     "고양/김포": ["고양", "MGMP"]
 };
 
-export const els = {
-    fromCenterInput: document.getElementById('from-center'),
-    toCenterInput: document.getElementById('to-center'),
-    typeSelect: document.getElementById('type'),
-    dateInput: document.getElementById('date'),
-    timeInput: document.getElementById('time'),
-    incomeInput: document.getElementById('income'),
-    costInput: document.getElementById('cost'),
-    manualDistanceInput: document.getElementById('manual-distance'),
-    editModeIndicator: document.getElementById('edit-mode-indicator'),
-    centerListContainer: document.getElementById('center-list-container'),
-    transportDetails: document.getElementById('transport-details'),
-    fuelDetails: document.getElementById('fuel-details'),
-    expenseDetails: document.getElementById('expense-details'),
-    supplyDetails: document.getElementById('supply-details'),
-    costInfoFieldset: document.getElementById('cost-info-fieldset'),
-    tripActions: document.getElementById('trip-actions'),
-    generalActions: document.getElementById('general-actions'),
-    editActions: document.getElementById('edit-actions'),
-};
-
-function getRegionOfCenter(name) {
+export function getRegionOfCenter(name) {
     for (const [r, keywords] of Object.entries(REGIONS)) {
         if (keywords.some(k => name.includes(k))) return r;
     }
     return "기타";
-}
-
-function getCenterRoles() {
-    const roles = {};
-    MEM_CENTERS.forEach(c => roles[c] = { load: 0, unload: 0 });
-    MEM_RECORDS.forEach(r => {
-        if (r.from && roles[r.from]) roles[r.from].load++;
-        if (r.to && roles[r.to]) roles[r.to].unload++;
-    });
-    const result = {};
-    Object.keys(roles).forEach(c => {
-        const { load, unload } = roles[c];
-        if (load > unload * 2 && load > 1) result[c] = 'role-load';
-        else if (unload > load * 2 && unload > 1) result[c] = 'role-unload';
-        else result[c] = 'role-both';
-    });
-    return result;
 }
 
 export function renderQuickShortcuts() {
@@ -61,7 +23,6 @@ export function renderQuickShortcuts() {
     const chipContainer = document.getElementById('quick-center-chips');
     if(!tabContainer || !chipContainer) return;
 
-    const roles = getCenterRoles();
     const groups = { "기타": [] };
     Object.keys(REGIONS).forEach(r => groups[r] = []);
     MEM_CENTERS.forEach(c => groups[getRegionOfCenter(c)].push(c));
@@ -77,12 +38,14 @@ export function renderQuickShortcuts() {
             chipContainer.innerHTML = '';
             groups[region].forEach(c => {
                 const chip = document.createElement('div');
-                chip.className = `chip ${roles[c] || 'role-both'}`;
+                chip.className = `chip`;
                 chip.textContent = c;
                 chip.onclick = () => {
-                    if (!els.fromCenterInput.value) els.fromCenterInput.value = c;
-                    else els.toCenterInput.value = c;
-                    els.fromCenterInput.dispatchEvent(new Event('input'));
+                    const from = document.getElementById('from-center');
+                    const to = document.getElementById('to-center');
+                    if (!from.value) from.value = c;
+                    else to.value = c;
+                    from.dispatchEvent(new Event('input'));
                 };
                 chipContainer.appendChild(chip);
             });
@@ -92,7 +55,7 @@ export function renderQuickShortcuts() {
 }
 
 export function displayCenterList(filter='') {
-    const container = els.centerListContainer;
+    const container = document.getElementById('center-list-container');
     if(!container) return;
     container.innerHTML = "";
     const filtered = MEM_CENTERS.filter(c => c.includes(filter));
@@ -111,40 +74,27 @@ export function displayCenterList(filter='') {
         groups[region].forEach(c => {
             const div = document.createElement('div');
             div.className = 'center-item';
-            div.innerHTML = `<span>${c}</span><button onclick="deleteCenter('${c}')">삭제</button>`;
+            div.innerHTML = `<span>${c}</span><button class="del-btn">삭제</button>`;
+            div.querySelector('.del-btn').onclick = () => {
+                if(confirm('삭제?')) {
+                    MEM_CENTERS.splice(MEM_CENTERS.indexOf(c), 1);
+                    saveData(); displayCenterList(filter);
+                }
+            };
             container.appendChild(div);
         });
     });
 }
-window.deleteCenter = (name) => {
-    if(confirm('삭제하시겠습니까?')) {
-        const idx = MEM_CENTERS.indexOf(name);
-        if(idx > -1) MEM_CENTERS.splice(idx, 1);
-        saveData();
-        displayCenterList();
-    }
-};
 
 export function toggleUI() {
-    const type = els.typeSelect.value;
-    const isEditMode = !els.editModeIndicator.classList.contains('hidden');
-    
-    [els.transportDetails, els.fuelDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el?.classList.add('hidden'));
-
-    if (type === '화물운송') {
-        els.transportDetails.classList.remove('hidden');
-        els.costInfoFieldset.classList.remove('hidden');
-        if (!isEditMode) els.tripActions.classList.remove('hidden');
-    } else {
-        els.costInfoFieldset.classList.remove('hidden');
-        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
-        if (!isEditMode) els.generalActions.classList.remove('hidden');
-    }
+    const type = document.getElementById('type').value;
+    const transport = document.getElementById('transport-details');
+    transport.classList.toggle('hidden', type !== '화물운송');
 }
 
 export function resetForm() {
     document.getElementById('record-form').reset();
-    els.dateInput.value = getTodayString();
-    els.timeInput.value = getCurrentTimeString();
+    document.getElementById('date').value = getTodayString();
+    document.getElementById('time').value = getCurrentTimeString();
     toggleUI();
 }
