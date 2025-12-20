@@ -13,24 +13,29 @@ function initialSetup() {
     document.getElementById('today-date-picker').value = today;
     Stats.displayTodayRecords(today);
 
-    // 설정 페이지 전환 이벤트 (이게 없어서 안 눌렸던 것)
-    document.getElementById('go-to-settings-btn').onclick = () => {
-        document.getElementById('main-page').classList.add('hidden');
-        document.getElementById('settings-page').classList.remove('hidden');
-        document.getElementById('go-to-settings-btn').classList.add('hidden');
-        document.getElementById('back-to-main-btn').classList.remove('hidden');
+    // 설정 버튼 직접 연결 (querySelector 대신 getElementById로 확실하게)
+    const btnGoSettings = document.getElementById('go-to-settings-btn');
+    const btnBackMain = document.getElementById('back-to-main-btn');
+    const pageMain = document.getElementById('main-page');
+    const pageSettings = document.getElementById('settings-page');
+
+    btnGoSettings.onclick = () => {
+        pageMain.classList.add('hidden');
+        pageSettings.classList.remove('hidden');
+        btnGoSettings.classList.add('hidden');
+        btnBackMain.classList.remove('hidden');
     };
 
-    document.getElementById('back-to-main-btn').onclick = () => {
-        document.getElementById('main-page').classList.remove('hidden');
-        document.getElementById('settings-page').classList.add('hidden');
-        document.getElementById('go-to-settings-btn').classList.remove('hidden');
-        document.getElementById('back-to-main-btn').classList.add('hidden');
+    btnBackMain.onclick = () => {
+        pageMain.classList.remove('hidden');
+        pageSettings.classList.add('hidden');
+        btnGoSettings.classList.remove('hidden');
+        btnBackMain.classList.add('hidden');
         Stats.displayTodayRecords(document.getElementById('today-date-picker').value);
     };
 }
 
-// 저장 버튼 이벤트
+// 저장 로직
 document.getElementById('btn-save-record').onclick = () => {
     const r = {
         id: Date.now(),
@@ -45,7 +50,7 @@ document.getElementById('btn-save-record').onclick = () => {
     };
     Data.MEM_RECORDS.push(r);
     Data.saveData();
-    Utils.showToast("저장되었습니다.");
+    Utils.showToast("저장 완료");
     UI.resetForm();
     Stats.displayTodayRecords(document.getElementById('today-date-picker').value);
 };
@@ -67,9 +72,5 @@ document.getElementById('next-day-btn').onclick = () => {
     Stats.displayTodayRecords(picker.value);
 };
 
-// 아코디언
-document.querySelectorAll('.collapsible-header').forEach(h => {
-    h.onclick = () => h.nextElementSibling.classList.toggle('hidden');
-});
-
+// 아코디언 및 기타 초기화
 document.addEventListener('DOMContentLoaded', initialSetup);

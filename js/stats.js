@@ -18,7 +18,11 @@ export function displayTodayRecords(date) {
         if(next) {
             endTime = next.time;
             const diff = (new Date(`${next.date}T${next.time}`) - new Date(`${r.date}T${r.time}`)) / 60000;
-            if(diff >= 0) duration = Math.floor(diff/60) > 0 ? `${Math.floor(diff/60)}h ${Math.round(diff%60)}m` : `${Math.round(diff%60)}m`;
+            if(diff >= 0) {
+                const h = Math.floor(diff/60);
+                const m = Math.round(diff%60);
+                duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            }
         }
 
         const money = r.income > 0 ? `<span class="income">+${formatToManwon(r.income)}</span>` : (r.cost > 0 ? `<span class="cost">-${formatToManwon(r.cost)}</span>` : '0');
@@ -27,14 +31,14 @@ export function displayTodayRecords(date) {
 
         tr.innerHTML = `
             <td>${r.time}</td><td>${endTime}</td><td>${duration}</td>
-            <td>${r.from || ''}${mFrom ? `<span class="table-memo">${mFrom}</span>` : ''}</td>
-            <td>${r.to || ''}${mTo ? `<span class="table-memo">${mTo}</span>` : ''}</td>
+            <td style="text-align:left;">${r.from || ''}${mFrom ? `<span class="table-memo">${mFrom}</span>` : ''}</td>
+            <td style="text-align:left;">${r.to || ''}${mTo ? `<span class="table-memo">${mTo}</span>` : ''}</td>
             <td>${r.distance ? r.distance+'k' : ''}</td><td>${money}</td>
         `;
         tbody.appendChild(tr);
     });
 
-    let totalInc = 0;
-    dayRecords.forEach(r => totalInc += (r.income || 0));
-    document.getElementById('today-summary').innerHTML = `오늘 정산: <b>${formatToManwon(totalInc)} 만원</b>`;
+    let inc = 0;
+    dayRecords.forEach(r => inc += (r.income || 0));
+    document.getElementById('today-summary').innerHTML = `오늘 정산: <b>${formatToManwon(inc)} 만원</b>`;
 }
