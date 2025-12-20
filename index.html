@@ -55,8 +55,8 @@
                         <div class="region-row">
                             <span class="region-label">상차:</span>
                             <button type="button" class="region-btn" data-target="from" data-region="northwest">북/서</button>
-                            <button type="button" class="region-btn" data-target="from" data-region="siheung">시흥</button>
                             <button type="button" class="region-btn" data-target="from" data-region="incheon">인천</button>
+                            <button type="button" class="region-btn" data-target="from" data-region="siheung">시흥</button>
                             <button type="button" class="region-btn" data-target="from" data-region="southeast">동남</button>
                             <button type="button" class="region-btn" data-target="from" data-region="chung">충청</button>
                         </div>
@@ -73,14 +73,6 @@
                     <datalist id="center-list"></datalist>
                     <div id="address-display" class="note"></div>
                     <input type="number" id="manual-distance" placeholder="운행거리(km)">
-                </fieldset>
-
-                <fieldset id="fuel-details" class="hidden">
-                    <legend>주유 정보</legend>
-                    <div class="input-group row">
-                        <input type="number" step="0.01" id="fuel-unit-price" placeholder="단가">
-                        <input type="number" step="0.01" id="fuel-liters" placeholder="주유량(L)">
-                    </div>
                 </fieldset>
 
                 <fieldset id="cost-info-fieldset">
@@ -100,35 +92,28 @@
             </form>
 
             <div class="view-section">
-                <div id="today-view" class="view-content active">
-                    <div class="selector-group">
-                        <button type="button" id="prev-day-btn">←</button>
-                        <input type="date" id="today-date-picker">
-                        <button type="button" id="next-day-btn">→</button>
-                    </div>
-                    <div id="today-summary" class="summary"></div>
-                    <table id="today-records-table" class="responsive-table">
-                        <thead>
-                            <tr><th>시작</th><th>종료</th><th>소요</th><th>상차</th><th>하차</th><th>비고</th><th>금액</th></tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <div class="selector-group">
+                    <button type="button" id="prev-day-btn">←</button>
+                    <input type="date" id="today-date-picker">
+                    <button type="button" id="next-day-btn">→</button>
                 </div>
+                <div id="today-summary" class="summary"></div>
+                <table id="today-records-table" class="responsive-table">
+                    <thead>
+                        <tr><th>시작</th><th>종료</th><th>소요</th><th>상차</th><th>하차</th><th>비고</th><th>금액</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
 
-        <!-- 설정 페이지 (ID 확인) -->
+        <!-- 설정 페이지 -->
         <div id="settings-page" class="hidden">
             <h2>⚙️ 설정 및 관리</h2>
-            <div class="data-summary-section">
-                <div class="summary-grid">
-                    <div class="metric-card"><span class="metric-label">총 운행거리</span><span class="metric-value" id="total-dist-val">0km</span></div>
-                </div>
-            </div>
-            <h2 id="toggle-data-management" class="collapsible-header">데이터 관리</h2>
-            <div class="collapsible-body hidden">
-                <button type="button" id="export-json-btn">JSON 백업</button>
-                <button type="button" id="import-json-btn">JSON 복원</button>
+            <h2 id="toggle-data-management" class="collapsible-header active">데이터 관리</h2>
+            <div class="collapsible-body">
+                <button type="button" id="export-json-btn">JSON 백업 (파일저장)</button>
+                <button type="button" id="import-json-btn">JSON 복원 (파일선택)</button>
                 <input type="file" id="import-file-input" class="hidden">
             </div>
         </div>
