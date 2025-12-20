@@ -1,6 +1,6 @@
 body { font-family: -apple-system, sans-serif; margin: 0; padding: 0.5em; background-color: #f5f5f5; }
 .container { max-width: 600px; margin: auto; background-color: white; padding: 0.8em; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.logo { font-size: 2em; }
+.logo { font-size: 2.2em; font-weight: 300; margin: 0; }
 .logo-point { color: #007bff; font-weight: 600; }
 .hidden { display: none !important; }
 
@@ -8,26 +8,37 @@ body { font-family: -apple-system, sans-serif; margin: 0; padding: 0.5em; backgr
 .nav-buttons { display: flex; gap: 5px; }
 .nav-buttons button { width: auto; padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; }
 
-fieldset { border: 1px solid #ddd; padding: 1em; margin-bottom: 1em; border-radius: 4px; }
-.input-group.row { display: flex; gap: 0.5em; margin-bottom: 0.5em; }
+fieldset { border: 1px solid #ddd; border-radius: 4px; padding: 1em; margin-bottom: 1em; }
+.input-group.row { display: flex; gap: 0.5em; }
 input, select, button { padding: 0.8em; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
 button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
 
-/* 권역 버튼 리뉴얼 */
-.region-btn-container { display: flex; flex-direction: column; gap: 8px; background: #f1f3f5; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
-.region-row { display: flex; gap: 5px; align-items: center; overflow-x: auto; padding-bottom: 5px; }
-.region-label { font-size: 0.75em; font-weight: bold; color: #555; min-width: 40px; }
-.region-btn { width: auto; padding: 6px 12px; font-size: 0.85em; background: #fff; color: #333; border: 1px solid #ced4da; border-radius: 20px; flex-shrink: 0; }
+/* 권역 버튼 스타일 */
+.region-btn-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #eee; border-radius: 6px; }
+.region-row { display: flex; gap: 5px; overflow-x: auto; white-space: nowrap; align-items: center; -webkit-overflow-scrolling: touch; }
+.region-label { font-size: 0.75em; font-weight: bold; color: #666; min-width: 40px; }
+.region-btn { padding: 6px 12px; font-size: 0.85em; background: white; color: #333; border: 1px solid #ddd; border-radius: 20px; width: auto; flex-shrink: 0; }
 .region-btn.active { background: #007bff; color: white; border-color: #007bff; }
 
-/* 테이블 레이아웃 */
+/* 테이블 및 요약 */
 .responsive-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
 .responsive-table th, .responsive-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 .responsive-table th { background: #f8f9fa; }
-.table-memo { display: block; font-size: 0.8em; color: #666; background: #e9ecef; margin-top: 2px; border-radius: 4px; padding: 2px; }
+.table-memo { display: block; font-size: 0.8em; color: #666; background: #f1f3f5; margin-top: 2px; border-radius: 4px; padding: 2px; }
 .income { color: green; font-weight: bold; }
 .cost { color: red; font-weight: bold; }
-.summary { background: #e9f5ff; padding: 10px; text-align: center; border-radius: 4px; margin-bottom: 10px; border: 1px solid #bde0ff; }
+.summary { background: #e9f5ff; padding: 10px; border-radius: 4px; margin-bottom: 10px; text-align: center; border: 1px solid #bde0ff; }
 
-#toast-notification { visibility: hidden; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 4px; z-index: 1000; }
-#toast-notification.show { visibility: visible; }
+/* 설정 UI */
+.collapsible-header { cursor: pointer; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; font-size: 1.1em; }
+.collapsible-body { padding: 10px; border: 1px solid #ddd; border-top: none; }
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+.metric-card { background: #f8f9fa; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #eee; }
+.file-upload-btn { display: block; background: #28a745; color: white; text-align: center; padding: 10px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; }
+
+@media screen and (max-width: 600px) {
+    .responsive-table thead { display: none; }
+    .responsive-table tr { display: block; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .responsive-table td { display: block; text-align: right; padding-left: 45%; position: relative; border: none; border-bottom: 1px solid #eee; height: auto; min-height: 35px; }
+    .responsive-table td:before { content: attr(data-label); position: absolute; left: 10px; width: 40%; text-align: left; font-weight: bold; color: #666; }
+}

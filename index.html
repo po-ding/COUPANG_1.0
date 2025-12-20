@@ -47,10 +47,11 @@
                 <fieldset id="transport-details">
                     <legend>상/하차 정보</legend>
                     <div class="input-group row">
-                        <input type="text" id="from-center" list="center-list" placeholder="상차지(출발)">
-                        <input type="text" id="to-center" list="center-list" placeholder="하차지(도착)">
+                        <input type="text" id="from-center" list="center-list" placeholder="상차지 검색/입력">
+                        <input type="text" id="to-center" list="center-list" placeholder="하차지 검색/입력">
                     </div>
 
+                    <!-- 빈도 분석 기반 권역 필터 -->
                     <div id="region-selector" class="region-btn-container">
                         <div class="region-row">
                             <span class="region-label">상차:</span>
@@ -75,6 +76,14 @@
                     <input type="number" id="manual-distance" placeholder="운행거리(km)">
                 </fieldset>
 
+                <fieldset id="fuel-details" class="hidden">
+                    <legend>주유 정보</legend>
+                    <div class="input-group row">
+                        <input type="number" step="0.01" id="fuel-unit-price" placeholder="단가">
+                        <input type="number" step="0.01" id="fuel-liters" placeholder="주유량(L)">
+                    </div>
+                </fieldset>
+
                 <fieldset id="cost-info-fieldset">
                     <legend>금액 정보</legend>
                     <div id="cost-wrapper" class="hidden"><input type="number" id="cost" step="0.01" placeholder="지출(만원)"></div>
@@ -83,37 +92,78 @@
 
                 <div id="trip-actions" class="action-btn-group">
                     <button type="button" id="btn-save-record">기록 저장</button>
+                    <button type="button" id="btn-trip-cancel" style="background-color: #6c757d;">운행 취소</button>
                 </div>
                 <div id="edit-actions" class="action-btn-group hidden">
-                    <button type="button" id="btn-update-record">수정 완료</button>
+                    <button type="button" id="btn-update-record" class="edit-btn">수정 완료</button>
+                    <button type="button" id="btn-delete-record" class="delete-btn">삭제</button>
                     <button type="button" id="btn-cancel-edit">취소</button>
                 </div>
                 <input type="hidden" id="edit-id">
             </form>
 
             <div class="view-section">
-                <div class="selector-group">
-                    <button type="button" id="prev-day-btn">←</button>
-                    <input type="date" id="today-date-picker">
-                    <button type="button" id="next-day-btn">→</button>
+                <div class="view-tabs">
+                    <button type="button" class="tab-btn active" data-view="today">오늘</button>
+                    <button type="button" class="tab-btn" data-view="daily">일별</button>
+                    <button type="button" class="tab-btn" data-view="monthly">월별</button>
                 </div>
-                <div id="today-summary" class="summary"></div>
-                <table id="today-records-table" class="responsive-table">
-                    <thead>
-                        <tr><th>시작</th><th>종료</th><th>소요</th><th>상차</th><th>하차</th><th>비고</th><th>금액</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+
+                <div id="today-view" class="view-content active">
+                    <div class="selector-group">
+                        <button type="button" id="prev-day-btn">←</button>
+                        <input type="date" id="today-date-picker">
+                        <button type="button" id="next-day-btn">→</button>
+                    </div>
+                    <div id="today-summary" class="summary"></div>
+                    <table id="today-records-table" class="responsive-table">
+                        <thead>
+                            <tr><th>시작</th><th>종료</th><th>소요</th><th>상차</th><th>하차</th><th>비고</th><th>금액</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <!-- 설정 페이지 -->
         <div id="settings-page" class="hidden">
             <h2>⚙️ 설정 및 관리</h2>
-            <h2 id="toggle-data-management" class="collapsible-header active">데이터 관리</h2>
-            <div class="collapsible-body">
-                <button type="button" id="export-json-btn">JSON 백업 (파일저장)</button>
-                <button type="button" id="import-json-btn">JSON 복원 (파일선택)</button>
+            <div id="current-month-summary-container">
+                <h4 id="current-month-title"></h4>
+                <div class="summary-grid">
+                    <div class="metric-card"><span class="metric-label">총수입</span><span class="metric-value income" id="current-month-income"></span></div>
+                    <div class="metric-card"><span class="metric-label">총지출</span><span class="metric-value cost" id="current-month-expense"></span></div>
+                    <div class="metric-card highlight"><span class="metric-label">정산 금액</span><span class="metric-value" id="current-month-net-income"></span></div>
+                </div>
+            </div>
+
+            <h2 id="toggle-center-management" class="collapsible-header">운송 지역 관리</h2>
+            <div class="collapsible-body hidden">
+                <div id="center-list-container"></div>
+            </div>
+
+            <h2 id="toggle-subsidy-management" class="collapsible-header">유가보조금 및 OCR</h2>
+            <div class="collapsible-body hidden">
+                <fieldset>
+                    <legend>📷 영수증 인식</legend>
+                    <label for="ocr-input" class="file-upload-btn">📷 사진 선택</label>
+                    <input type="file" id="ocr-input" accept="image/*" class="hidden">
+                    <div id="ocr-status" class="note"></div>
+                    <div id="ocr-result-container" class="hidden">
+                        <div class="input-group row"><input type="date" id="ocr-date"><input type="time" id="ocr-time"></div>
+                        <div class="input-group row"><input type="number" id="ocr-cost" placeholder="금액"><input type="number" id="ocr-subsidy" placeholder="보조금"></div>
+                        <div class="input-group row"><input type="number" id="ocr-liters" placeholder="리터"><input type="number" id="ocr-price" placeholder="단가"></div>
+                        <button type="button" id="btn-save-ocr">OCR 저장</button>
+                    </div>
+                </fieldset>
+                <div id="subsidy-summary"></div>
+            </div>
+
+            <h2 id="toggle-data-management" class="collapsible-header">데이터 관리</h2>
+            <div class="collapsible-body hidden">
+                <button type="button" id="export-json-btn">백업파일 저장</button>
+                <button type="button" id="import-json-btn">백업파일 복원</button>
                 <input type="file" id="import-file-input" class="hidden">
             </div>
         </div>
