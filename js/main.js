@@ -5,104 +5,94 @@ import * as Stats from './stats.js';
 
 function initialSetup() {
     Data.loadAllData();
-    UI.populateCenterDatalist();
-    UI.populateExpenseDatalist();
-    UI.renderQuickButtons(); // 퀵 버튼 생성
-
-    // 오늘 날짜 및 조회용 날짜 초기화 (04시 기준)
-    const todayStr = Utils.getTodayString();
-    const nowTime = Utils.getCurrentTimeString();
-    const statToday = Utils.getStatisticalDate(todayStr, nowTime);
+    UI.renderQuickButtons();
+    
+    // 초기 날짜 (04시 기준)
+    const statToday = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
     document.getElementById('today-date-picker').value = statToday;
 
-    setupSelectBoxes();
+    setupUIEvents();
     UI.resetForm();
-    updateAllDisplays();
-    setupEventListeners();
+    updateDisplays();
 }
 
-function setupSelectBoxes() {
-    const y = new Date().getFullYear();
-    const ms = Array.from({length:12}, (_,i) => (i+1).toString().padStart(2,'0'));
-    const yrHtml = Array.from({length:5}, (_,i) => `<option value="${y-i}">${y-i}년</option>`).join('');
-    const msHtml = ms.map(v => `<option value="${v}">${parseInt(v)}월</option>`).join('');
-
-    ['daily','weekly','monthly','print'].forEach(p => {
-        const yEl = document.getElementById(`${p}-year-select`);
-        const mEl = document.getElementById(`${p}-month-select`);
-        if(yEl) yEl.innerHTML = yrHtml;
-        if(mEl) {
-            mEl.innerHTML = msHtml;
-            mEl.value = (new Date().getMonth()+1).toString().padStart(2,'0');
-        }
-    });
-}
-
-function updateAllDisplays() {
-    const targetDate = document.getElementById('today-date-picker').value;
-    Stats.displayTodayRecords(targetDate);
+function updateDisplays() {
+    const date = document.getElementById('today-date-picker').value;
+    Stats.displayTodayRecords(date);
     Stats.displayDailyRecords();
     Stats.displayWeeklyRecords();
-    Stats.displayMonthlyRecords();
 }
 
-function setupEventListeners() {
-    // 운행 시작/종료/취소
+function setupUIEvents() {
+    // 1. 설정 페이지 전환
+    UI.els.btnGoToSettings.onclick = () => {
+        UI.els.mainPage.classList.add('hidden');
+        UI.els.settingsPage.classList.remove('hidden');
+        UI.els.btnGoToSettings.classList.add('hidden');
+        UI.els.btnBackToMain.classList.remove('hidden');
+        Stats.displayCurrentMonthData();
+    };
+
+    UI.els.btnBackToMain.onclick = () => {
+        UI.els.mainPage.classList.remove('hidden');
+        UI.els.settingsPage.classList.add('hidden');
+        UI.els.btnGoToSettings.classList.remove('hidden');
+        UI.els.btnBackToMain.classList.add('hidden');
+        updateDisplays();
+    };
+
+    // 2. 입력 동작 버튼
     UI.els.btnStartTrip.onclick = () => {
-        const data = UI.getFormDataWithoutTime();
+        const data = UI.getFormData();
         Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...data });
-        Utils.showToast('운행 시작됨');
+        Utils.showToast('운행 시작 기록됨');
         UI.resetForm();
-        updateAllDisplays();
+        updateDisplays();
     };
 
     UI.els.btnEndTrip.onclick = () => {
         Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), type: '운행종료', distance: 0, cost: 0, income: 0 });
         Utils.showToast('운행 종료');
         UI.resetForm();
-        updateAllDisplays();
+        updateDisplays();
     };
 
-    // 상하차지 입력 시 주소 및 거리 자동입력
-    UI.els.fromCenterInput.oninput = UI.els.toCenterInput.oninput = () => {
-        const f = UI.els.fromCenterInput.value.trim();
-        const t = UI.els.toCenterInput.value.trim();
-        if(f && t) {
-            const key = `${f}-${t}`;
-            if(Data.MEM_FARES[key]) UI.els.incomeInput.value = (Data.MEM_FARES[key]/10000).toFixed(2);
-            if(Data.MEM_DISTANCES[key]) UI.els.manualDistanceInput.value = Data.MEM_DISTANCES[key];
-        }
-        UI.updateAddressDisplay();
+    UI.els.btnSaveGeneral.onclick = () => {
+        const data = UI.getFormData();
+        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...data });
+        Utils.showToast('저장 완료');
+        UI.resetForm();
+        updateDisplays();
     };
 
-    // 기타 탭 전환 및 버튼 이벤트
-    document.getElementById('refresh-btn').onclick = () => location.reload();
+    // 3. 기록 조회 탭 전환
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(`${btn.dataset.view}-view`).classList.add('active');
-            updateAllDisplays();
+            updateDisplays();
         };
     });
 
-    // 설정 페이지 전환
-    document.getElementById('go-to-settings-btn').onclick = () => {
-        document.getElementById('main-page').classList.add('hidden');
-        document.getElementById('settings-page').classList.remove('hidden');
-        document.getElementById('go-to-settings-btn').classList.add('hidden');
-        document.getElementById('back-to-main-btn').classList.remove('hidden');
-        Stats.displayCumulativeData();
-        Stats.displayCurrentMonthData();
+    // 4. 아코디언 메뉴 제어
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+        header.onclick = () => {
+            header.classList.toggle('active');
+            header.nextElementSibling.classList.toggle('hidden');
+        };
+    });
+
+    // 5. 상하차지 입력 시 주소표시 트리거
+    UI.els.fromCenterInput.oninput = UI.els.toCenterInput.oninput = () => {
+        const f = UI.els.fromCenterInput.value.trim();
+        const t = UI.els.toCenterInput.value.trim();
+        // 백업 데이터에서 운임/거리 자동 로드 로직 (필요시 추가)
+        UI.updateAddressDisplay(); 
     };
 
-    document.getElementById('back-to-main-btn').onclick = () => {
-        document.getElementById('main-page').classList.remove('hidden');
-        document.getElementById('settings-page').classList.add('hidden');
-        document.getElementById('go-to-settings-btn').classList.remove('hidden');
-        document.getElementById('back-to-main-btn').classList.add('hidden');
-    };
+    document.getElementById('refresh-btn').onclick = () => location.reload();
 }
 
 document.addEventListener("DOMContentLoaded", initialSetup);
