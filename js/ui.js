@@ -1,6 +1,7 @@
 import { getTodayString, getCurrentTimeString } from './utils.js';
 import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS, MEM_EXPENSE_ITEMS } from './data.js';
 
+// [권역 정의]
 const REGIONS = {
     "인천": ["인천"],
     "남양주/구리": ["남양주", "구리", "MNYJ"],
@@ -53,7 +54,7 @@ export const els = {
     centerListContainer: document.getElementById('center-list-container'),
 };
 
-/** 권역 및 성격 분석 로직 */
+// [기능] 권역 및 성격 판별
 function getRegionOfCenter(name) {
     for (const [r, keywords] of Object.entries(REGIONS)) {
         if (keywords.some(k => name.includes(k))) return r;
@@ -78,15 +79,17 @@ function getCenterRoles() {
     return result;
 }
 
+// [기능] 메인 화면 퀵 버튼
 export function renderQuickShortcuts() {
     const tabContainer = document.getElementById('quick-region-tabs');
     const chipContainer = document.getElementById('quick-center-chips');
     if(!tabContainer || !chipContainer) return;
+
     const roles = getCenterRoles();
-    const groups = {};
+    const groups = { "기타": [] };
     Object.keys(REGIONS).forEach(r => groups[r] = []);
-    groups["기타"] = [];
     MEM_CENTERS.forEach(c => groups[getRegionOfCenter(c)].push(c));
+
     tabContainer.innerHTML = '';
     Object.keys(groups).forEach(region => {
         if (groups[region].length === 0) return;
@@ -113,7 +116,7 @@ export function renderQuickShortcuts() {
     });
 }
 
-/** 설정 내 지역 관리 (그룹화 아코디언) */
+// [기능] 설정 내 지역 관리 (권역별 아코디언)
 export function displayCenterList(filter='') {
     const container = els.centerListContainer;
     container.innerHTML = "";
@@ -143,50 +146,39 @@ export function displayCenterList(filter='') {
             item.className = 'center-item';
             item.innerHTML = `<span>${c}</span><div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div>`;
             item.querySelector('.edit-btn').onclick = () => handleCenterEdit(item, c);
-            item.querySelector('.delete-btn').onclick = () => { if(confirm('삭제?')) { MEM_CENTERS.splice(MEM_CENTERS.indexOf(c),1); delete MEM_LOCATIONS[c]; saveData(); displayCenterList(filter); } };
+            item.querySelector('.delete-btn').onclick = () => { if(confirm(`${c} 삭제?`)) { const idx = MEM_CENTERS.indexOf(c); if(idx>-1) MEM_CENTERS.splice(idx,1); delete MEM_LOCATIONS[c]; saveData(); displayCenterList(filter); } };
             content.appendChild(item);
         });
         groupDiv.appendChild(header); groupDiv.appendChild(content); container.appendChild(groupDiv);
     });
 }
 
-/** 원본 핵심 UI 기능 복구 (12KB 분량) */
-export function toggleUI() {
-    const type = els.typeSelect.value;
-    const isEditMode = !els.editModeIndicator.classList.contains('hidden');
-    [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
-    if (type === '화물운송' || type === '대기') {
-        els.transportDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.costWrapper.classList.add('hidden'); els.incomeWrapper.classList.remove('hidden');
-        if (!isEditMode) els.tripActions.classList.remove('hidden');
-    } else if (type === '수입') {
-        els.expenseDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.remove('hidden'); els.costWrapper.classList.add('hidden');
-        if (!isEditMode) els.generalActions.classList.remove('hidden');
-    } else {
-        els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.add('hidden'); els.costWrapper.classList.remove('hidden');
-        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
-        if (type === '소모품') els.supplyDetails.classList.remove('hidden');
-        if (type === '지출') els.expenseDetails.classList.remove('hidden');
-        if (!isEditMode) els.generalActions.classList.remove('hidden');
+// [원본 복구] 영수증 OCR 인식 로직
+export async function processReceiptImage(file) {
+    const statusDiv = document.getElementById('ocr-status');
+    const resultContainer = document.getElementById('ocr-result-container');
+    if (!file || !statusDiv) return;
+    statusDiv.innerHTML = "⏳ 이미지 전처리 및 분석 중...";
+    try {
+        const { data: { text } } = await Tesseract.recognize(file, 'kor+eng');
+        statusDiv.innerHTML = "✅ 분석 완료! 내용을 확인해주세요.";
+        if(resultContainer) resultContainer.classList.remove('hidden');
+        parseReceiptText(text);
+    } catch (error) {
+        statusDiv.innerHTML = "❌ 분석 실패. 다시 시도해주세요.";
     }
-    if (isEditMode) els.editActions.classList.remove('hidden');
 }
 
-export function updateAddressDisplay() {
-    const fromVal = els.fromCenterInput.value; const toVal = els.toCenterInput.value;
-    const fromLoc = MEM_LOCATIONS[fromVal] || {}; const toLoc = MEM_LOCATIONS[toVal] || {};
-    let html = '';
-    if (fromLoc.address) html += `<div class="address-clickable" data-address="${fromLoc.address}">[상] ${fromLoc.address}</div>`;
-    if (toLoc.address) html += `<div class="address-clickable" data-address="${toLoc.address}">[하] ${toLoc.address}</div>`;
-    els.addressDisplay.innerHTML = html;
+function parseReceiptText(text) {
+    const costMatch = text.match(/(주유금액|승인금액)\s*[:]\s*([\d,]+)/);
+    if(costMatch) document.getElementById('ocr-cost').value = costMatch[2].replace(/,/g, '');
+    const litersMatch = text.match(/(주유리터|주유량)\s*[:]\s*([\d.]+)/);
+    if(litersMatch) document.getElementById('ocr-liters').value = litersMatch[2];
+    const dateMatch = text.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if(dateMatch) document.getElementById('ocr-date').value = `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}`;
 }
 
-export function resetForm() {
-    els.recordForm.reset(); els.editIdInput.value = ''; els.editModeIndicator.classList.add('hidden');
-    els.dateInput.value = getTodayString(); els.timeInput.value = getCurrentTimeString();
-    els.dateInput.disabled = false; els.timeInput.disabled = false; els.addressDisplay.innerHTML = '';
-    toggleUI();
-}
-
+// [원본 복구] 상세 수정 로직
 export function editRecord(id) {
     const r = MEM_RECORDS.find(x => x.id === id); if(!r) return;
     els.dateInput.value = r.date; els.timeInput.value = r.time; els.typeSelect.value = r.type;
@@ -200,41 +192,53 @@ export function editRecord(id) {
     els.dateInput.disabled = true; els.timeInput.disabled = true; toggleUI(); window.scrollTo(0,0);
 }
 
+// [원본 복구] 나머지 UI 제어 함수들
+export function toggleUI() {
+    const type = els.typeSelect.value;
+    const isEditMode = !els.editModeIndicator.classList.contains('hidden');
+    [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
+    if (type === '화물운송' || type === '대기') {
+        els.transportDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.costWrapper.classList.add('hidden'); els.incomeWrapper.classList.remove('hidden');
+        if (!isEditMode) els.tripActions.classList.remove('hidden');
+    } else if (type === '수입') {
+        els.expenseDetails.classList.remove('hidden'); document.getElementById('expense-legend').textContent = "수입 내역"; els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.remove('hidden'); els.costWrapper.classList.add('hidden');
+        if (!isEditMode) els.generalActions.classList.remove('hidden');
+    } else {
+        els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.add('hidden'); els.costWrapper.classList.remove('hidden');
+        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
+        else if (type === '소모품') els.supplyDetails.classList.remove('hidden');
+        else if (type === '지출') { els.expenseDetails.classList.remove('hidden'); document.getElementById('expense-legend').textContent = "지출 내역"; }
+        if (!isEditMode) els.generalActions.classList.remove('hidden');
+    }
+    if (isEditMode) { els.editActions.classList.remove('hidden'); els.btnEditEndTrip.classList.toggle('hidden', ['주유소','소모품','지출','수입'].includes(type)); }
+}
+
+export function updateAddressDisplay() {
+    const fromVal = els.fromCenterInput.value; const toVal = els.toCenterInput.value;
+    const fromLoc = MEM_LOCATIONS[fromVal] || {}; const toLoc = MEM_LOCATIONS[toVal] || {};
+    let html = '';
+    if (fromLoc.address) html += `<div class="address-clickable" data-address="${fromLoc.address}" onclick="Utils.copyTextToClipboard('${fromLoc.address}', '주소 복사됨')">[상] ${fromLoc.address}</div>`;
+    if (toLoc.address) html += `<div class="address-clickable" data-address="${toLoc.address}" onclick="Utils.copyTextToClipboard('${toLoc.address}', '주소 복사됨')">[하] ${toLoc.address}</div>`;
+    els.addressDisplay.innerHTML = html;
+}
+
+export function resetForm() {
+    els.recordForm.reset(); els.editIdInput.value = ''; els.editModeIndicator.classList.add('hidden');
+    els.dateInput.value = getTodayString(); els.timeInput.value = getCurrentTimeString();
+    els.dateInput.disabled = false; els.timeInput.disabled = false; els.addressDisplay.innerHTML = '';
+    toggleUI();
+}
+
 function handleCenterEdit(div, c) {
     const l = MEM_LOCATIONS[c]||{};
     div.innerHTML = `<div class="edit-form"><input class="edit-input" value="${c}"><input class="edit-address-input" value="${l.address||''}" placeholder="주소"><div class="action-buttons"><button class="setting-save-btn">저장</button><button class="cancel-edit-btn">취소</button></div></div>`;
     div.querySelector('.setting-save-btn').onclick = () => {
         const nn = div.querySelector('.edit-input').value.trim(); const na = div.querySelector('.edit-address-input').value.trim();
         if(!nn) return;
-        if(nn!==c) { 
-            const idx = MEM_CENTERS.indexOf(c); if(idx>-1) MEM_CENTERS.splice(idx,1);
-            if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn); delete MEM_LOCATIONS[c];
-            MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; }); saveData();
-        }
+        if(nn!==c) { const idx = MEM_CENTERS.indexOf(c); if(idx>-1) MEM_CENTERS.splice(idx,1); if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn); delete MEM_LOCATIONS[c]; MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; }); saveData(); }
         updateLocationData(nn, na); displayCenterList();
     };
     div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList();
-}
-
-/** [OCR 영수증 처리] 원본 로직 유지 */
-export async function processReceiptImage(file) {
-    const statusDiv = document.getElementById('ocr-status');
-    const resultContainer = document.getElementById('ocr-result-container');
-    if (!file) return;
-    statusDiv.innerHTML = "⏳ 이미지 분석 중...";
-    try {
-        const { data: { text } } = await Tesseract.recognize(file, 'kor+eng');
-        statusDiv.innerHTML = "✅ 분석 완료";
-        resultContainer.classList.remove('hidden');
-        parseReceiptText(text);
-    } catch (e) { statusDiv.innerHTML = "❌ 분석 실패"; }
-}
-
-function parseReceiptText(text) {
-    const costMatch = text.match(/(주유금액|승인금액)\s*[:]\s*([\d,]+)/);
-    if(costMatch) document.getElementById('ocr-cost').value = costMatch[2].replace(/,/g, '');
-    const dateMatch = text.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
-    if(dateMatch) document.getElementById('ocr-date').value = `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}`;
 }
 
 export function populateCenterDatalist() { els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join(''); }
