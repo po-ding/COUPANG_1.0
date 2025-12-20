@@ -12,39 +12,32 @@ const REGIONS = {
 };
 
 export const els = {
-    recordForm: document.getElementById('record-form'),
-    dateInput: document.getElementById('date'),
-    timeInput: document.getElementById('time'),
-    typeSelect: document.getElementById('type'),
     fromCenterInput: document.getElementById('from-center'),
     toCenterInput: document.getElementById('to-center'),
-    centerDatalist: document.getElementById('center-list'),
+    typeSelect: document.getElementById('type'),
+    dateInput: document.getElementById('date'),
+    timeInput: document.getElementById('time'),
+    incomeInput: document.getElementById('income'),
+    costInput: document.getElementById('cost'),
     manualDistanceInput: document.getElementById('manual-distance'),
-    addressDisplay: document.getElementById('address-display'),
+    editModeIndicator: document.getElementById('edit-mode-indicator'),
+    centerListContainer: document.getElementById('center-list-container'),
     transportDetails: document.getElementById('transport-details'),
     fuelDetails: document.getElementById('fuel-details'),
     expenseDetails: document.getElementById('expense-details'),
     supplyDetails: document.getElementById('supply-details'),
     costInfoFieldset: document.getElementById('cost-info-fieldset'),
-    costWrapper: document.getElementById('cost-wrapper'),
-    incomeWrapper: document.getElementById('income-wrapper'),
-    costInput: document.getElementById('cost'),
-    incomeInput: document.getElementById('income'),
     tripActions: document.getElementById('trip-actions'),
     generalActions: document.getElementById('general-actions'),
     editActions: document.getElementById('edit-actions'),
-    editModeIndicator: document.getElementById('edit-mode-indicator'),
-    editIdInput: document.getElementById('edit-id'),
-    centerListContainer: document.getElementById('center-list-container'),
-    btnTripCancel: document.getElementById('btn-trip-cancel'),
-    btnStartTrip: document.getElementById('btn-start-trip'),
-    btnEndTrip: document.getElementById('btn-end-trip'),
-    btnSaveGeneral: document.getElementById('btn-save-general'),
-    btnEditEndTrip: document.getElementById('btn-edit-end-trip'),
-    btnUpdateRecord: document.getElementById('btn-update-record'),
-    btnDeleteRecord: document.getElementById('btn-delete-record'),
-    btnCancelEdit: document.getElementById('btn-cancel-edit'),
 };
+
+function getRegionOfCenter(name) {
+    for (const [r, keywords] of Object.entries(REGIONS)) {
+        if (keywords.some(k => name.includes(k))) return r;
+    }
+    return "기타";
+}
 
 function getCenterRoles() {
     const roles = {};
@@ -56,18 +49,11 @@ function getCenterRoles() {
     const result = {};
     Object.keys(roles).forEach(c => {
         const { load, unload } = roles[c];
-        if (load > unload * 2 && load > 2) result[c] = 'role-load';
-        else if (unload > load * 2 && unload > 2) result[c] = 'role-unload';
+        if (load > unload * 2 && load > 1) result[c] = 'role-load';
+        else if (unload > load * 2 && unload > 1) result[c] = 'role-unload';
         else result[c] = 'role-both';
     });
     return result;
-}
-
-function getRegionOfCenter(name) {
-    for (const [r, keywords] of Object.entries(REGIONS)) {
-        if (keywords.some(k => name.includes(k))) return r;
-    }
-    return "기타";
 }
 
 export function renderQuickShortcuts() {
@@ -85,8 +71,7 @@ export function renderQuickShortcuts() {
         if (groups[region].length === 0) return;
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'region-btn'; btn.textContent = region;
-        btn.onclick = (e) => {
-            e.preventDefault();
+        btn.onclick = () => {
             tabContainer.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             chipContainer.innerHTML = '';
@@ -106,27 +91,9 @@ export function renderQuickShortcuts() {
     });
 }
 
-export function toggleUI() {
-    const type = els.typeSelect.value;
-    const isEditMode = !els.editModeIndicator.classList.contains('hidden');
-    [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
-    
-    if (type === '화물운송' || type === '대기') {
-        els.transportDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.costWrapper.classList.add('hidden'); els.incomeWrapper.classList.remove('hidden');
-        if (!isEditMode) els.tripActions.classList.remove('hidden');
-    } else if (type === '수입') {
-        els.expenseDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.remove('hidden'); els.costWrapper.classList.add('hidden');
-        if (!isEditMode) els.generalActions.classList.remove('hidden');
-    } else {
-        els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.add('hidden'); els.costWrapper.classList.remove('hidden');
-        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
-        if (!isEditMode) els.generalActions.classList.remove('hidden');
-    }
-    if (isEditMode) els.editActions.classList.remove('hidden');
-}
-
 export function displayCenterList(filter='') {
     const container = els.centerListContainer;
+    if(!container) return;
     container.innerHTML = "";
     const filtered = MEM_CENTERS.filter(c => c.includes(filter));
     const groups = {};
@@ -143,38 +110,41 @@ export function displayCenterList(filter='') {
         container.appendChild(title);
         groups[region].forEach(c => {
             const div = document.createElement('div');
-            div.className='center-item';
-            div.innerHTML=`<div class="info"><span>${c}</span><button class="del-btn" style="background:red; color:white; border:none; border-radius:4px; padding:3px 8px;">삭제</button></div>`;
-            div.querySelector('.del-btn').onclick = () => { if(confirm('삭제?')) { MEM_CENTERS.splice(MEM_CENTERS.indexOf(c),1); saveData(); displayCenterList(filter); } };
+            div.className = 'center-item';
+            div.innerHTML = `<span>${c}</span><button onclick="deleteCenter('${c}')">삭제</button>`;
             container.appendChild(div);
         });
     });
 }
+window.deleteCenter = (name) => {
+    if(confirm('삭제하시겠습니까?')) {
+        const idx = MEM_CENTERS.indexOf(name);
+        if(idx > -1) MEM_CENTERS.splice(idx, 1);
+        saveData();
+        displayCenterList();
+    }
+};
+
+export function toggleUI() {
+    const type = els.typeSelect.value;
+    const isEditMode = !els.editModeIndicator.classList.contains('hidden');
+    
+    [els.transportDetails, els.fuelDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el?.classList.add('hidden'));
+
+    if (type === '화물운송') {
+        els.transportDetails.classList.remove('hidden');
+        els.costInfoFieldset.classList.remove('hidden');
+        if (!isEditMode) els.tripActions.classList.remove('hidden');
+    } else {
+        els.costInfoFieldset.classList.remove('hidden');
+        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
+        if (!isEditMode) els.generalActions.classList.remove('hidden');
+    }
+}
 
 export function resetForm() {
-    els.recordForm.reset(); els.editIdInput.value = ''; els.editModeIndicator.classList.add('hidden');
-    els.dateInput.value = getTodayString(); els.timeInput.value = getCurrentTimeString();
-    els.dateInput.disabled = false; els.timeInput.disabled = false;
+    document.getElementById('record-form').reset();
+    els.dateInput.value = getTodayString();
+    els.timeInput.value = getCurrentTimeString();
     toggleUI();
-}
-
-export function updateAddressDisplay() {
-    const fromLoc = MEM_LOCATIONS[els.fromCenterInput.value] || {};
-    const toLoc = MEM_LOCATIONS[els.toCenterInput.value] || {};
-    let html = '';
-    if (fromLoc.address) html += `<div>[상] ${fromLoc.address}</div>`;
-    if (toLoc.address) html += `<div>[하] ${toLoc.address}</div>`;
-    els.addressDisplay.innerHTML = html;
-}
-
-export function populateCenterDatalist() { els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join(''); }
-export function populateExpenseDatalist() { els.expenseDatalist.innerHTML = MEM_EXPENSE_ITEMS.map(item => `<option value="${item}"></option>`).join(''); }
-
-export function getFormDataWithoutTime() {
-    return {
-        type: els.typeSelect.value, from: els.fromCenterInput.value.trim(), to: els.toCenterInput.value.trim(),
-        distance: parseFloat(els.manualDistanceInput.value) || 0,
-        income: Math.round((parseFloat(els.incomeInput.value) || 0) * 10000),
-        cost: Math.round((parseFloat(els.costInput.value) || 0) * 10000)
-    };
 }

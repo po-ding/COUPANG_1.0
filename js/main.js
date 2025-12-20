@@ -5,83 +5,80 @@ import * as Stats from './stats.js';
 
 function initialSetup() {
     Data.loadAllData();
-    UI.populateCenterDatalist();
-    UI.populateExpenseDatalist();
     UI.resetForm();
     UI.renderQuickShortcuts();
 
-    // 설정 버튼 이벤트
-    document.getElementById('go-to-settings-btn').onclick = () => {
-        document.getElementById('main-page').classList.add('hidden');
-        document.getElementById('settings-page').classList.remove('hidden');
-        document.getElementById('go-to-settings-btn').classList.add('hidden');
-        document.getElementById('back-to-main-btn').classList.remove('hidden');
-        Stats.displayCumulativeData(); Stats.displayCurrentMonthData();
-    };
+    // [중요] 설정 페이지 이동 이벤트
+    const settingsBtn = document.getElementById('go-to-settings-btn');
+    const backBtn = document.getElementById('back-to-main-btn');
+    const mainPage = document.getElementById('main-page');
+    const settingsPage = document.getElementById('settings-page');
 
-    document.getElementById('back-to-main-btn').onclick = () => {
-        document.getElementById('main-page').classList.remove('hidden');
-        document.getElementById('settings-page').classList.add('hidden');
-        document.getElementById('go-to-settings-btn').classList.remove('hidden');
-        document.getElementById('back-to-main-btn').classList.add('hidden');
-        updateAllDisplays();
-    };
+    if(settingsBtn) {
+        settingsBtn.onclick = () => {
+            mainPage.classList.add('hidden');
+            settingsPage.classList.remove('hidden');
+            settingsBtn.classList.add('hidden');
+            backBtn.classList.remove('hidden');
+            Stats.displayCumulativeData();
+            Stats.displayCurrentMonthData();
+        };
+    }
 
-    // 설정 아코디언 이벤트
-    const accordions = [
-        'toggle-center-management', 'toggle-batch-apply', 'toggle-subsidy-management', 
-        'toggle-data-management'
-    ];
-    accordions.forEach(id => {
-        const header = document.getElementById(id);
-        if(header) {
-            header.onclick = () => {
-                header.classList.toggle("active");
-                header.nextElementSibling.classList.toggle("hidden");
-                if(id === 'toggle-center-management') UI.displayCenterList();
-            };
-        }
+    if(backBtn) {
+        backBtn.onclick = () => {
+            mainPage.classList.remove('hidden');
+            settingsPage.classList.add('hidden');
+            settingsBtn.classList.remove('hidden');
+            backBtn.classList.add('hidden');
+            updateAllDisplays();
+        };
+    }
+
+    // 아코디언 메뉴 이벤트
+    const accordionHeader = document.getElementById('toggle-center-management');
+    if(accordionHeader) {
+        accordionHeader.onclick = () => {
+            const body = document.getElementById('center-management-body');
+            body.classList.toggle('hidden');
+            if(!body.classList.contains('hidden')) UI.displayCenterList();
+        };
+    }
+    
+    // 타 아코디언들
+    ['toggle-batch-apply', 'toggle-subsidy-management', 'toggle-data-management'].forEach(id => {
+        const h = document.getElementById(id);
+        if(h) h.onclick = () => h.nextElementSibling.classList.toggle('hidden');
     });
 
-    // 시작/저장 버튼 이벤트
-    UI.els.btnStartTrip.onclick = () => {
-        const fd = UI.getFormDataWithoutTime();
-        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...fd });
-        Utils.showToast('시작됨'); UI.resetForm(); updateAllDisplays();
-    };
-
-    UI.els.btnSaveGeneral.onclick = () => {
-        const fd = UI.getFormDataWithoutTime();
-        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...fd });
-        Utils.showToast('저장됨'); UI.resetForm(); updateAllDisplays();
-    };
-
-    // 데이터 복원
-    document.getElementById('import-json-btn').onclick = () => document.getElementById('import-file-input').click();
-    document.getElementById('import-file-input').onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            const d = JSON.parse(evt.target.result);
-            if(d.records) localStorage.setItem('records', JSON.stringify(d.records));
-            if(d.centers) localStorage.setItem('logistics_centers', JSON.stringify(d.centers));
-            alert('복원완료'); location.reload();
+    // 기록 저장 이벤트
+    if(UI.els.btnStartTrip) {
+        UI.els.btnStartTrip.onclick = () => {
+            const fd = UI.getFormDataWithoutTime ? UI.getFormDataWithoutTime() : { 
+                type: UI.els.typeSelect.value, 
+                from: UI.els.fromCenterInput.value, 
+                to: UI.els.toCenterInput.value 
+            };
+            Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...fd });
+            Utils.showToast('저장됨');
+            UI.resetForm();
+            updateAllDisplays();
         };
-        reader.readAsText(e.target.files[0]);
-    };
+    }
 
+    // 기타 설정
     document.getElementById('refresh-btn').onclick = () => location.reload();
-    document.getElementById('type').onchange = UI.toggleUI;
-    document.getElementById('today-date-picker').onchange = () => updateAllDisplays();
+    UI.els.typeSelect.onchange = UI.toggleUI;
     
-    const today = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
-    document.getElementById('today-date-picker').value = today;
+    document.getElementById('today-date-picker').value = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
+    document.getElementById('today-date-picker').onchange = () => updateAllDisplays();
 
     updateAllDisplays();
 }
 
 function updateAllDisplays() {
-    const date = document.getElementById('today-date-picker').value || Utils.getTodayString();
-    Stats.displayTodayRecords(date); Stats.displayDailyRecords(); Stats.displayWeeklyRecords(); Stats.displayMonthlyRecords();
+    const date = document.getElementById('today-date-picker').value;
+    Stats.displayTodayRecords(date);
     UI.renderQuickShortcuts();
 }
 
