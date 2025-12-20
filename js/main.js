@@ -5,41 +5,80 @@ import * as Stats from './stats.js';
 
 function initialSetup() {
     Data.loadAllData();
-    UI.populateCenterDatalist();
-    UI.populateExpenseDatalist();
-    
-    // [추가] 퀵 버튼 초기화
-    UI.renderQuickShortcuts();
-
-    const y = new Date().getFullYear();
-    const yrs = []; for(let i=0; i<5; i++) yrs.push(`<option value="${y-i}">${y-i}년</option>`);
-    [document.getElementById('daily-year-select'), document.getElementById('weekly-year-select'), document.getElementById('monthly-year-select')].forEach(el => el.innerHTML = yrs.join(''));
-    
-    const ms = []; for(let i=1; i<=12; i++) ms.push(`<option value="${i.toString().padStart(2,'0')}">${i}월</option>`);
-    [document.getElementById('daily-month-select'), document.getElementById('weekly-month-select')].forEach(el => { 
-        el.innerHTML = ms.join(''); 
-        el.value = (new Date().getMonth()+1).toString().padStart(2,'0'); 
-    });
-
-    const statToday = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
-    document.getElementById('today-date-picker').value = statToday;
-
     UI.resetForm();
+    UI.renderQuickShortcuts();
+    
+    const todayStr = Utils.getTodayString();
+    document.getElementById('today-date-picker').value = todayStr;
+    
+    // 설정 페이지 이동 버튼
+    document.getElementById('go-to-settings-btn').onclick = () => {
+        document.getElementById('main-page').classList.add('hidden');
+        document.getElementById('settings-page').classList.remove('hidden');
+        document.getElementById('go-to-settings-btn').classList.add('hidden');
+        document.getElementById('back-to-main-btn').classList.remove('hidden');
+        Stats.displayCurrentMonthData();
+    };
+
+    // 메인 페이지 이동 버튼
+    document.getElementById('back-to-main-btn').onclick = () => {
+        document.getElementById('main-page').classList.remove('hidden');
+        document.getElementById('settings-page').classList.add('hidden');
+        document.getElementById('go-to-settings-btn').classList.remove('hidden');
+        document.getElementById('back-to-main-btn').classList.add('hidden');
+        updateAllDisplays();
+    };
+
+    // 운행 시작 버튼
+    document.getElementById('btn-start-trip').onclick = () => {
+        const fd = UI.getFormDataWithoutTime();
+        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...fd });
+        Utils.showToast('저장됨');
+        UI.resetForm();
+        updateAllDisplays();
+    };
+
+    // 일반 저장 버튼
+    document.getElementById('btn-save-general').onclick = () => {
+        const fd = UI.getFormDataWithoutTime();
+        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...fd });
+        Utils.showToast('저장됨');
+        UI.resetForm();
+        updateAllDisplays();
+    };
+
+    // 아코디언 메뉴
+    document.getElementById('toggle-center-management').onclick = () => {
+        const body = document.getElementById('center-management-body');
+        body.classList.toggle('hidden');
+        if(!body.classList.contains('hidden')) UI.displayCenterList();
+    };
+
+    // 데이터 복원
+    document.getElementById('import-json-btn').onclick = () => document.getElementById('import-file-input').click();
+    document.getElementById('import-file-input').onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const d = JSON.parse(evt.target.result);
+            if(d.records) localStorage.setItem('records', JSON.stringify(d.records));
+            if(d.centers) localStorage.setItem('logistics_centers', JSON.stringify(d.centers));
+            alert('복원완료'); location.reload();
+        };
+        reader.readAsText(file);
+    };
+
     updateAllDisplays();
 }
 
 function updateAllDisplays() {
-    const targetDate = document.getElementById('today-date-picker').value || Utils.getTodayString();
-    Stats.displayTodayRecords(targetDate);
-    Stats.displayDailyRecords();
-    Stats.displayWeeklyRecords();
-    Stats.displayMonthlyRecords();
-    // 퀵버튼도 데이터 변화가 있을 수 있으므로 갱신
+    const date = document.getElementById('today-date-picker').value;
+    Stats.displayTodayRecords(date);
     UI.renderQuickShortcuts();
 }
 
-// 나머지 이벤트 리스너들은 기존 파일과 동일하게 유지...
-// (이벤트 리스너 부분은 코드량이 많아 생략하나, 원본 파일의 내용을 그대로 붙여넣으시면 됩니다.)
+document.getElementById('type').onchange = UI.toggleUI;
+document.getElementById('refresh-btn').onclick = () => location.reload();
+document.getElementById('today-date-picker').onchange = () => updateAllDisplays();
 
 document.addEventListener("DOMContentLoaded", initialSetup);
-// (기존 main.js의 moveDate, 탭 전환, 설정 페이지 전환 등 모든 이벤트 리스너 포함)
