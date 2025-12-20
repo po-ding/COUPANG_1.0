@@ -8,56 +8,33 @@ export function displayTodayRecords(date) {
                                   .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
     
     tbody.innerHTML = '';
-    
     dayRecords.forEach((r, idx) => {
-        if (r.type === '운행종료') return;
-
+        if(r.type === '운행종료') return;
         const tr = document.createElement('tr');
         tr.onclick = () => editRecord(r.id);
 
-        // 종료 시간 및 소요 시간 계산
-        let endTime = '진행중';
-        let duration = '-';
-        const nextRecord = dayRecords[idx + 1];
-        if (nextRecord) {
-            endTime = nextRecord.time;
-            const start = new Date(`${r.date}T${r.time}`);
-            const end = new Date(`${nextRecord.date}T${nextRecord.time}`);
-            const diff = (end - start) / 60000;
-            if (diff >= 0) {
-                const h = Math.floor(diff / 60);
-                const m = Math.round(diff % 60);
-                duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
-            }
+        let endTime = '-', duration = '-';
+        const next = dayRecords[idx+1];
+        if(next) {
+            endTime = next.time;
+            const diff = (new Date(`${next.date}T${next.time}`) - new Date(`${r.date}T${r.time}`)) / 60000;
+            if(diff >= 0) duration = Math.floor(diff/60) > 0 ? `${Math.floor(diff/60)}h ${Math.round(diff%60)}m` : `${Math.round(diff%60)}m`;
         }
 
-        const money = r.income > 0 ? `<span class="income">+${formatToManwon(r.income)}</span>` : 
-                     (r.cost > 0 ? `<span class="cost">-${formatToManwon(r.cost)}</span>` : '0');
+        const money = r.income > 0 ? `<span class="income">+${formatToManwon(r.income)}</span>` : (r.cost > 0 ? `<span class="cost">-${formatToManwon(r.cost)}</span>` : '0');
+        const mFrom = MEM_LOCATIONS[r.from]?.memo || '';
+        const mTo = MEM_LOCATIONS[r.to]?.memo || '';
 
-        const locFrom = MEM_LOCATIONS[r.from] || {};
-        const locTo = MEM_LOCATIONS[r.to] || {};
-
-        if (r.type === '화물운송' || r.type === '대기' || r.type === '운행취소') {
-            tr.innerHTML = `
-                <td data-label="시작">${r.time}</td>
-                <td data-label="종료">${endTime}</td>
-                <td data-label="소요">${duration}</td>
-                <td data-label="상차">${r.from || ''}${locFrom.memo ? `<span class="table-memo">${locFrom.memo}</span>` : ''}</td>
-                <td data-label="하차">${r.to || ''}${locTo.memo ? `<span class="table-memo">${locTo.memo}</span>` : ''}</td>
-                <td data-label="비고">${r.type === '운행취소' ? '취소' : (r.distance ? r.distance+'km' : '')}</td>
-                <td data-label="금액">${money}</td>
-            `;
-        } else {
-            tr.innerHTML = `
-                <td data-label="시작">${r.time}</td>
-                <td colspan="5" style="text-align:left; padding-left:10px;"><b>[${r.type}]</b> ${r.expenseItem || r.supplyItem || ''}</td>
-                <td data-label="금액">${money}</td>
-            `;
-        }
+        tr.innerHTML = `
+            <td>${r.time}</td><td>${endTime}</td><td>${duration}</td>
+            <td>${r.from || ''}${mFrom ? `<span class="table-memo">${mFrom}</span>` : ''}</td>
+            <td>${r.to || ''}${mTo ? `<span class="table-memo">${mTo}</span>` : ''}</td>
+            <td>${r.distance ? r.distance+'k' : ''}</td><td>${money}</td>
+        `;
         tbody.appendChild(tr);
     });
 
-    let inc = 0, exp = 0;
-    dayRecords.forEach(r => { if(r.type !== '운행취소') { inc += (r.income||0); exp += (r.cost||0); }});
-    document.getElementById('today-summary').innerHTML = `수입: ${formatToManwon(inc)} / 지출: ${formatToManwon(exp)} / <b>정산: ${formatToManwon(inc-exp)}만</b>`;
+    let totalInc = 0;
+    dayRecords.forEach(r => totalInc += (r.income || 0));
+    document.getElementById('today-summary').innerHTML = `오늘 정산: <b>${formatToManwon(totalInc)} 만원</b>`;
 }
