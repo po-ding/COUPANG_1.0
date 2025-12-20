@@ -3,80 +3,133 @@ import * as Data from './data.js';
 import * as UI from './ui.js';
 import * as Stats from './stats.js';
 
+// 전역 함수 등록 (HTML에서 호출하는 경우 대비)
+window.viewDateDetails = (date) => {
+    document.getElementById('today-date-picker').value = date;
+    const todayTab = document.querySelector('.tab-btn[data-view="today"]');
+    if(todayTab) todayTab.click();
+    Stats.displayTodayRecords(date);
+};
+
 function initialSetup() {
     Data.loadAllData();
     UI.renderQuickButtons();
     
-    // 초기 날짜 (04시 기준)
+    // 04시 기준 오늘 날짜 초기화
     const statToday = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
-    document.getElementById('today-date-picker').value = statToday;
+    const picker = document.getElementById('today-date-picker');
+    if(picker) picker.value = statToday;
 
-    setupUIEvents();
+    setupYearMonthSelectors();
+    setupEventListeners();
+    
     UI.resetForm();
     updateDisplays();
 }
 
 function updateDisplays() {
-    const date = document.getElementById('today-date-picker').value;
-    Stats.displayTodayRecords(date);
+    const picker = document.getElementById('today-date-picker');
+    if(!picker) return;
+    Stats.displayTodayRecords(picker.value);
     Stats.displayDailyRecords();
     Stats.displayWeeklyRecords();
 }
 
-function setupUIEvents() {
-    // 1. 설정 페이지 전환
-    UI.els.btnGoToSettings.onclick = () => {
-        UI.els.mainPage.classList.add('hidden');
-        UI.els.settingsPage.classList.remove('hidden');
-        UI.els.btnGoToSettings.classList.add('hidden');
-        UI.els.btnBackToMain.classList.remove('hidden');
+function setupYearMonthSelectors() {
+    const y = new Date().getFullYear();
+    const yrs = Array.from({length:5}, (_,i) => `<option value="${y-i}">${y-i}년</option>`).join('');
+    ['daily','weekly','print'].forEach(p => {
+        const el = document.getElementById(`${p}-year-select`);
+        if(el) el.innerHTML = yrs;
+    });
+}
+
+function setupEventListeners() {
+    // 1. 설정/요약 페이지 전환
+    document.getElementById('go-to-settings-btn').onclick = () => {
+        document.getElementById('main-page').classList.add('hidden');
+        document.getElementById('settings-page').classList.remove('hidden');
+        document.getElementById('go-to-settings-btn').classList.add('hidden');
+        document.getElementById('back-to-main-btn').classList.remove('hidden');
         Stats.displayCurrentMonthData();
     };
 
-    UI.els.btnBackToMain.onclick = () => {
-        UI.els.mainPage.classList.remove('hidden');
-        UI.els.settingsPage.classList.add('hidden');
-        UI.els.btnGoToSettings.classList.remove('hidden');
-        UI.els.btnBackToMain.classList.add('hidden');
+    document.getElementById('back-to-main-btn').onclick = () => {
+        document.getElementById('main-page').classList.remove('hidden');
+        document.getElementById('settings-page').classList.add('hidden');
+        document.getElementById('go-to-settings-btn').classList.remove('hidden');
+        document.getElementById('back-to-main-btn').classList.add('hidden');
         updateDisplays();
     };
 
-    // 2. 입력 동작 버튼
-    UI.els.btnStartTrip.onclick = () => {
-        const data = UI.getFormData();
-        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...data });
+    // 2. 탭 전환
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+            btn.classList.add('active');
+            const viewId = `${btn.dataset.view}-view`;
+            document.getElementById(viewId).classList.add('active');
+            updateDisplays();
+        };
+    });
+
+    // 3. 기록 버튼 (시작, 종료, 취소)
+    document.getElementById('btn-start-trip').onclick = () => {
+        const formData = UI.getFormData();
+        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...formData });
         Utils.showToast('운행 시작 기록됨');
         UI.resetForm();
         updateDisplays();
     };
 
-    UI.els.btnEndTrip.onclick = () => {
+    document.getElementById('btn-end-trip').onclick = () => {
         Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), type: '운행종료', distance: 0, cost: 0, income: 0 });
         Utils.showToast('운행 종료');
         UI.resetForm();
         updateDisplays();
     };
 
-    UI.els.btnSaveGeneral.onclick = () => {
-        const data = UI.getFormData();
-        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...data });
+    document.getElementById('btn-save-general').onclick = () => {
+        const formData = UI.getFormData();
+        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...formData });
         Utils.showToast('저장 완료');
         UI.resetForm();
         updateDisplays();
     };
 
-    // 3. 기록 조회 탭 전환
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById(`${btn.dataset.view}-view`).classList.add('active');
-            updateDisplays();
-        };
-    });
+    // 4. 데이터 백업 및 복원
+    document.getElementById('export-json-btn').onclick = () => {
+        const blob = new Blob([JSON.stringify({ 
+            records: Data.MEM_RECORDS, 
+            locations: Data.MEM_LOCATIONS, 
+            centers: Data.MEM_CENTERS 
+        }, null, 2)], {type: "application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `cargo_backup_${Utils.getTodayString()}.json`;
+        a.click();
+    };
 
-    // 4. 아코디언 메뉴 제어
+    document.getElementById('import-json-btn').onclick = () => document.getElementById('import-file-input').click();
+
+    document.getElementById('import-file-input').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const d = JSON.parse(evt.target.result);
+                if(confirm('데이터를 덮어쓰시겠습니까?')) {
+                    localStorage.setItem('records', JSON.stringify(d.records || []));
+                    localStorage.setItem('saved_locations', JSON.stringify(d.locations || {}));
+                    localStorage.setItem('logistics_centers', JSON.stringify(d.centers || []));
+                    alert('복원 성공'); location.reload();
+                }
+            } catch(err) { alert('파일 오류'); }
+        };
+        reader.readAsText(e.target.files[0]);
+    };
+
+    // 5. 아코디언 메뉴
     document.querySelectorAll('.collapsible-header').forEach(header => {
         header.onclick = () => {
             header.classList.toggle('active');
@@ -84,13 +137,8 @@ function setupUIEvents() {
         };
     });
 
-    // 5. 상하차지 입력 시 주소표시 트리거
-    UI.els.fromCenterInput.oninput = UI.els.toCenterInput.oninput = () => {
-        const f = UI.els.fromCenterInput.value.trim();
-        const t = UI.els.toCenterInput.value.trim();
-        // 백업 데이터에서 운임/거리 자동 로드 로직 (필요시 추가)
-        UI.updateAddressDisplay(); 
-    };
+    // 6. 상하차지 주소 자동 표시
+    UI.els.fromCenterInput.oninput = UI.els.toCenterInput.oninput = () => UI.updateAddressDisplay();
 
     document.getElementById('refresh-btn').onclick = () => location.reload();
 }
