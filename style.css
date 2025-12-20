@@ -1,107 +1,66 @@
-/** 버전: 17.0 | 최종 수정일: 2025-12-20 (권역별 버튼 기능 통합) */
+/** 버전: 17.0 | 전체 디자인 통합 */
 
-/* 1. 기본 레이아웃 및 공통 스타일 (복원) */
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; margin: 0; padding: 0.5em; background-color: #f5f5f5; }
 .container { max-width: 600px; margin: auto; background-color: white; padding: 0.8em; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-/* 2. 로고 및 상단 네비게이션 (복원) */
+/* 상단 로고 */
 .page-nav { display: flex; justify-content: space-between; align-items: center; }
-.logo { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; font-size: 2.2em; color: #333; letter-spacing: 1px; margin: 0; padding: 0.2em 0; flex-grow: 1; text-align: left; }
+.logo { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; font-size: 2.2em; color: #333; letter-spacing: 1px; margin: 0; padding: 0.2em 0; }
 .logo-point { font-weight: 600; color: #007bff; }
 .nav-buttons { display: flex; gap: 0.5em; }
-.nav-buttons button { padding: 0.5em 1em; font-size: 0.9em; width: auto; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.nav-buttons button { padding: 0.5em 1em; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
 
-/* 3. 폼 요소 스타일 (복원) */
-fieldset { border: 1px solid #ddd; border-radius: 4px; padding: 1em; margin-bottom: 1em; display: flex; flex-direction: column; gap: 1em; }
-legend { font-weight: bold; color: #555; }
-.input-group.row { display: flex; flex-direction: row; gap: 0.5em; align-items: center; }
-.input-group.row input { flex: 1; padding: 0.8em; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
-select, input[type="date"], input[type="time"], input[type="number"], input[type="text"] { 
-    padding: 0.8em; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; 
-}
-button { padding: 0.8em; font-size: 1em; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-button:hover { opacity: 0.8; }
+/* 폼 스타일 */
+fieldset { border: 1px solid #ddd; border-radius: 6px; padding: 1em; margin-bottom: 1em; display: flex; flex-direction: column; gap: 0.8em; }
+legend { font-weight: bold; color: #555; padding: 0 5px; }
+input, select, button { padding: 0.8em; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; width: 100%; }
+.input-group.row { display: flex; flex-direction: row; gap: 0.5em; }
+.input-group.row input { flex: 1; }
 
-/* 4. [신규] 권역별/빈도별 퀵 버튼 디자인 (추가됨) */
-.quick-nav-container {
-    margin: 5px 0 10px 0;
-    max-height: 250px;
-    overflow-y: auto;
-    border: 1px solid #e9ecef;
-    padding: 10px;
-    background-color: #fcfcfc;
-    border-radius: 6px;
-}
+/* [신규] 퀵 버튼 시스템 */
+.quick-nav-container { margin: 5px 0 10px 0; max-height: 250px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background: #fdfdfd; border-radius: 6px; }
 .region-section { margin-bottom: 15px; }
-.region-title {
-    font-size: 0.75em;
-    font-weight: bold;
-    color: #007bff;
-    margin-bottom: 6px;
-    border-bottom: 1px solid #eef;
-    padding-bottom: 3px;
-    text-transform: uppercase;
-}
-.location-btn-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
-    gap: 6px;
-}
-.loc-quick-btn {
-    padding: 8px 3px;
-    font-size: 0.82em;
-    background-color: #ffffff;
-    color: #333;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.loc-quick-btn:hover { background-color: #e7f5ff; border-color: #74c0fc; color: #007bff; }
+.region-title { font-size: 0.75em; font-weight: bold; color: #007bff; margin-bottom: 6px; border-bottom: 1px solid #eef; padding-bottom: 3px; }
+.location-btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 6px; }
+.loc-quick-btn { padding: 8px 3px; font-size: 0.82em; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.loc-quick-btn:hover { background: #e7f5ff; border-color: #74c0fc; color: #007bff; }
 .loc-quick-btn small { display: block; font-size: 0.8em; color: #adb5bd; margin-top: 2px; }
 
-/* TOP 5 섹션 특수 스타일 */
+/* TOP 5 특수 강조 */
 .region-section:first-child .region-title { color: #dc3545; }
-.region-section:first-child .loc-quick-btn { background-color: #fff5f5; border-color: #ffa8a8; }
-.region-section:first-child .loc-quick-btn:hover { background-color: #ffe3e3; }
+.region-section:first-child .loc-quick-btn { background: #fff5f5; border-color: #ffa8a8; }
 
-/* 5. 테이블 및 기록 조회 (복원) */
+/* 테이블 및 뷰 */
 .view-tabs { display: flex; border-bottom: 2px solid #ddd; margin-top: 1em; }
-.tab-btn { flex: 1; padding: 12px; border: 1px solid #ccc; border-bottom: none; background: #f1f1f1; cursor: pointer; border-radius: 6px 6px 0 0; }
+.tab-btn { flex: 1; padding: 12px; background: #f1f1f1; border: 1px solid #ccc; border-bottom: none; cursor: pointer; border-radius: 6px 6px 0 0; }
 .tab-btn.active { background: #007bff; color: white; border-color: #007bff; }
-.tab-btn[data-view="today"].active { background-color: #28a745; border-color: #28a745; }
+.tab-btn[data-view="today"].active { background: #28a745; border-color: #28a745; }
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
 th, td { padding: 0.6em; border: 1px solid #ddd; text-align: center; font-size: 0.85em; word-break: break-all; }
 th { background-color: #f8f9fa; }
-.table-memo { display: block; font-size: 0.8em; color: #666; background-color: #f1f3f5; padding: 2px; margin-top: 3px; border-radius: 3px; }
+.table-memo { display: block; font-size: 0.8em; color: #666; background: #f1f3f5; padding: 2px; border-radius: 3px; margin-top: 3px; }
 
-/* 6. 상태 표시 및 기타 (복원) */
-.summary { background-color: #e9f5ff; padding: 1em; border-radius: 6px; margin-bottom: 1em; text-align: center; }
-.income { color: #28a745; font-weight: bold; }
-.cost { color: #dc3545; font-weight: bold; }
-.hidden { display: none; }
-#toast-notification {
-    visibility: hidden; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-    background: #333; color: white; padding: 12px 24px; border-radius: 24px; z-index: 9999; opacity: 0; transition: 0.4s;
-}
-#toast-notification.show { visibility: visible; opacity: 1; }
-
-/* 7. 모바일 대응 (반응형 레이아웃 복원) */
+/* 모바일 전용 레이아웃 (줄어들지 않은 버전) */
 @media screen and (max-width: 600px) {
     .responsive-table thead { display: none; }
-    .responsive-table tr { display: block; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 6px; padding: 5px; }
+    .responsive-table tr { display: block; border: 2px solid #eee; margin-bottom: 10px; border-radius: 6px; }
     .responsive-table td { display: block; text-align: right; padding-left: 45%; position: relative; border: none; border-bottom: 1px solid #f1f1f1; }
     .responsive-table td::before { content: attr(data-label); position: absolute; left: 10px; font-weight: bold; color: #888; }
     .responsive-table td:last-child { border-bottom: none; }
-    
-    .location-btn-grid { grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); }
 }
 
-/* 아코디언 및 설정 (복원) */
+/* 토스트 및 상태창 */
+.summary { background: #e9f5ff; padding: 1em; border-radius: 6px; margin-bottom: 1em; text-align: center; }
+.income { color: #28a745; font-weight: bold; }
+.cost { color: #dc3545; font-weight: bold; }
+#toast-notification { visibility: hidden; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 24px; z-index: 9999; opacity: 0; transition: 0.4s; }
+#toast-notification.show { visibility: visible; opacity: 1; }
+.hidden { display: none; }
+
+/* 아코디언 */
 .collapsible-header { cursor: pointer; background: #f8f9fa; padding: 1em; border: 1px solid #ddd; border-radius: 6px; margin-top: 10px; text-align: left; }
-.collapsible-header.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .collapsible-body { padding: 1em; border: 1px solid #ddd; border-top: none; border-radius: 0 0 6px 6px; }
+
+/* OCR 전용 */
+.file-upload-btn { display: block; background: #007bff; color: white; text-align: center; padding: 1em; border-radius: 4px; cursor: pointer; font-weight: bold; }
