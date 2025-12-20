@@ -38,23 +38,54 @@
                         <option value="화물운송">화물운송</option>
                         <option value="수입">수입</option>
                         <option value="주유소">주유소</option>
+                        <option value="소모품">소모품</option>
                         <option value="지출">지출</option>
                     </select>
                 </fieldset>
 
                 <fieldset id="transport-details">
                     <legend>상/하차 정보</legend>
+                    <!-- [추가] 권역별 퀵 선택 -->
                     <div id="quick-selection-area" class="quick-selection-wrapper">
                         <div id="quick-region-tabs" class="region-tabs"></div>
                         <div id="quick-center-chips" class="center-chips"></div>
                     </div>
+
                     <div class="input-group row">
-                        <input type="text" id="from-center" list="center-list" placeholder="상차지">
-                        <input type="text" id="to-center" list="center-list" placeholder="하차지">
+                        <input type="text" id="from-center" list="center-list" placeholder="상차지 검색/입력">
+                        <input type="text" id="to-center" list="center-list" placeholder="하차지 검색/입력">
                     </div>
                     <datalist id="center-list"></datalist>
                     <div id="address-display" class="note"></div>
                     <input type="number" id="manual-distance" placeholder="운행거리(km)">
+                </fieldset>
+
+                <!-- fuel-details, expense-details, supply-details 등 원본과 동일하게 유지 -->
+                <fieldset id="fuel-details" class="hidden">
+                    <legend>주유 정보</legend>
+                    <div class="input-group row">
+                        <input type="number" step="0.01" id="fuel-unit-price" placeholder="단가 (원/L)">
+                        <input type="number" step="0.01" id="fuel-liters" placeholder="주유량 (L)">
+                    </div>
+                     <select id="fuel-brand">
+                        <option value="S-OIL">S-OIL</option>
+                        <option value="SK에너지">SK에너지</option>
+                        <option value="GS칼텍스">GS칼텍스</option>
+                        <option value="현대오일뱅크">현대오일뱅크</option>
+                        <option value="기타">기타</option>
+                     </select>
+                </fieldset>
+
+                <fieldset id="expense-details" class="hidden">
+                    <legend id="expense-legend">내역 입력</legend>
+                    <input type="text" id="expense-item" list="expense-list" placeholder="내역">
+                    <datalist id="expense-list"></datalist>
+                </fieldset>
+
+                <fieldset id="supply-details" class="hidden">
+                    <legend>소모품 내역</legend>
+                    <input type="text" id="supply-item" placeholder="품목">
+                    <input type="number" id="supply-mileage" placeholder="교체 시점 주행거리(km)">
                 </fieldset>
 
                 <fieldset id="cost-info-fieldset">
@@ -64,22 +95,27 @@
                 </fieldset>
 
                 <div id="trip-actions" class="action-btn-group">
-                    <button type="button" id="btn-start-trip" style="background:#007bff; color:white;">운행 시작</button>
-                    <button type="button" id="btn-end-trip" style="background:#dc3545; color:white;">운행 종료</button>
+                    <button type="button" id="btn-start-trip">운행 시작</button>
+                    <button type="button" id="btn-end-trip" style="background-color: #dc3545;">운행 종료</button>
+                    <button type="button" id="btn-trip-cancel" style="background-color: #6c757d;">운행 취소</button>
                 </div>
-                <div id="general-actions" class="action-btn-group hidden">
-                    <button type="button" id="btn-save-general" style="background:#28a745; color:white;">기록 저장</button>
-                </div>
+                <div id="general-actions" class="action-btn-group hidden"><button type="button" id="btn-save-general">기록 저장</button></div>
                 <div id="edit-actions" class="action-btn-group hidden">
-                    <button type="button" id="btn-update-record" style="background:#fd7e14; color:white;">수정 완료</button>
-                    <button type="button" id="btn-cancel-edit" style="background:#6c757d; color:white;">취소</button>
+                    <div style="display:flex; flex-direction:column; gap:5px; width:100%;">
+                        <button type="button" id="btn-edit-end-trip" style="background-color: #17a2b8;">현재 시간으로 종료</button>
+                        <div style="display:flex; gap:5px;">
+                            <button type="button" id="btn-update-record" class="edit-btn">수정 완료</button>
+                            <button type="button" id="btn-delete-record" class="delete-btn">삭제</button>
+                            <button type="button" id="btn-cancel-edit">취소</button>
+                        </div>
+                    </div>
                 </div>
                 <input type="hidden" id="edit-id">
             </form>
 
             <div class="view-section">
                 <h2>기록 조회</h2>
-                <div class="view-tabs main-tabs">
+                <div class="view-tabs">
                     <button type="button" class="tab-btn active" data-view="today">오늘</button>
                     <button type="button" class="tab-btn" data-view="daily">일별</button>
                     <button type="button" class="tab-btn" data-view="weekly">주별</button>
@@ -88,42 +124,87 @@
 
                 <div id="today-view" class="view-content active">
                     <div class="selector-group">
+                        <button type="button" id="prev-day-btn">←</button>
                         <input type="date" id="today-date-picker">
+                        <button type="button" id="next-day-btn">→</button>
                     </div>
                     <div id="today-summary" class="summary"></div>
-                    <div class="table-container">
-                        <table id="today-records-table">
-                            <thead><tr><th>시간</th><th>상차</th><th>하차</th><th>금액</th></tr></thead>
+                    <div class="table-scroll">
+                        <table id="today-records-table" class="responsive-table auto-layout">
+                            <thead><tr><th>시작</th><th>종료</th><th>소요</th><th>상차</th><th>하차</th><th>비고</th><th>금액</th></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
                 </div>
 
                 <div id="daily-view" class="view-content">
+                    <div class="selector-group"><select id="daily-year-select"></select><select id="daily-month-select"></select></div>
                     <div id="daily-summary" class="summary"></div>
-                    <div class="table-container">
-                        <table id="daily-summary-table">
-                            <thead><tr><th>일</th><th>수입</th><th>지출</th><th>정산</th><th>관리</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                    <div class="table-scroll"><table id="daily-summary-table" class="yearly-summary-table"><thead><tr><th>일</th><th>수입</th><th>지출</th><th>정산</th><th>거리</th><th>이동</th><th>소요</th><th>관리</th></tr></thead><tbody></tbody></table></div>
                 </div>
-                <!-- 주별/월별은 데이터에 따라 Stats.js에서 그림 -->
-                <div id="weekly-view" class="view-content"><div id="weekly-summary" class="summary"></div><div class="table-container"><table id="weekly-summary-table"><tbody></tbody></table></div></div>
-                <div id="monthly-view" class="view-content"><div id="monthly-yearly-summary" class="summary"></div><div class="table-container"><table id="monthly-summary-table"><tbody></tbody></table></div></div>
+                <div id="weekly-view" class="view-content">
+                    <div class="selector-group"><select id="weekly-year-select"></select><select id="weekly-month-select"></select></div>
+                    <div id="weekly-summary" class="summary"></div>
+                    <div class="table-scroll"><table id="weekly-summary-table" class="yearly-summary-table"><thead><tr><th>주차</th><th>기간</th><th>수입</th><th>지출</th><th>정산</th><th>거리</th><th>이동</th><th>소요</th></tr></thead><tbody></tbody></table></div>
+                </div>
+                <div id="monthly-view" class="view-content">
+                    <div class="selector-group"><select id="monthly-year-select"></select></div>
+                    <div id="monthly-yearly-summary" class="summary"></div>
+                    <div class="table-scroll"><table id="monthly-summary-table" class="yearly-summary-table"><thead><tr><th>월</th><th>수입</th><th>지출</th><th>정산</th><th>거리</th><th>이동</th><th>소요</th></tr></thead><tbody></tbody></table></div>
+                </div>
             </div>
         </div>
 
+        <!-- 설정 페이지 -->
         <div id="settings-page" class="hidden">
+            <div class="data-summary-section">
+                <h2>데이터 요약</h2>
+                <div id="current-month-summary-container"><h4 id="current-month-title"></h4><div class="summary-grid" id="current-month-grid"></div></div>
+            </div>
+
             <h2 id="toggle-center-management" class="collapsible-header">운송 지역 관리</h2>
             <div id="center-management-body" class="collapsible-body hidden">
-                <input type="text" id="center-search-input" placeholder="지역 검색...">
-                <div id="center-list-container"></div>
+                <fieldset>
+                    <legend>새 지역 추가</legend>
+                    <div class="input-group">
+                        <input type="text" id="new-center-name" placeholder="이름">
+                        <input type="text" id="new-center-address" placeholder="주소">
+                        <input type="text" id="new-center-memo" placeholder="메모">
+                        <button type="button" id="add-center-btn">추가</button>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>등록된 지역 목록</legend>
+                    <input type="text" id="center-search-input" placeholder="검색...">
+                    <div id="center-list-container"></div>
+                </fieldset>
             </div>
+
+            <h2 id="toggle-subsidy-management" class="collapsible-header">유가보조금 & OCR</h2>
+            <div id="subsidy-management-body" class="collapsible-body hidden">
+                <fieldset>
+                    <legend>📷 영수증 인식</legend>
+                    <label for="ocr-input" class="file-upload-btn">📷 영수증 이미지 선택</label>
+                    <input type="file" id="ocr-input" accept="image/*" class="hidden">
+                    <div id="ocr-status" class="note"></div>
+                    <div id="ocr-result-container" class="hidden" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                        <h4>인식 결과 확인</h4>
+                        <div class="input-group row"><input type="date" id="ocr-date"><input type="time" id="ocr-time"></div>
+                        <div class="input-group row"><input type="number" id="ocr-cost" placeholder="주유금액"><input type="number" id="ocr-subsidy" placeholder="보조금액"></div>
+                        <div class="input-group row"><input type="number" id="ocr-liters" placeholder="리터(L)"><input type="number" id="ocr-price" placeholder="단가"></div>
+                        <div style="display:flex; gap:5px; margin-top:10px;"><button type="button" id="btn-retry-ocr">재인식</button><button type="button" id="btn-save-ocr">저장하기</button></div>
+                    </div>
+                </fieldset>
+                <div id="subsidy-summary"></div>
+            </div>
+
             <h2 id="toggle-data-management" class="collapsible-header">데이터 관리</h2>
             <div id="data-management-body" class="collapsible-body hidden">
-                <button type="button" id="export-json-btn">백업</button>
-                <button type="button" id="import-json-btn">복원</button>
+                <div class="action-buttons">
+                    <button type="button" id="export-json-btn">백업 (JSON)</button>
+                    <button type="button" id="import-json-btn">복원 (JSON)</button>
+                    <button type="button" id="clear-btn">전체 삭제</button>
+                </div>
                 <input type="file" id="import-file-input" class="hidden">
             </div>
         </div>
