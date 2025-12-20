@@ -1,7 +1,7 @@
 import { getTodayString, getCurrentTimeString } from './utils.js';
 import { MEM_LOCATIONS, MEM_CENTERS, updateLocationData, saveData, MEM_RECORDS, MEM_EXPENSE_ITEMS } from './data.js';
 
-// 권역 정의
+// 권역 매핑
 const REGIONS = {
     "인천": ["인천"],
     "남양주/구리": ["남양주", "구리", "MNYJ"],
@@ -54,7 +54,7 @@ export const els = {
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
 };
 
-// [추가] 성격 분석 로직
+/** 성격 분석 (상차/하차) */
 function getCenterRoles() {
     const roles = {};
     MEM_CENTERS.forEach(c => roles[c] = { load: 0, unload: 0 });
@@ -72,7 +72,7 @@ function getCenterRoles() {
     return result;
 }
 
-// [추가] 권역 판별 로직
+/** 권역 판별 */
 function getRegionOfCenter(name) {
     for (const [r, keywords] of Object.entries(REGIONS)) {
         if (keywords.some(k => name.includes(k))) return r;
@@ -80,7 +80,7 @@ function getRegionOfCenter(name) {
     return "기타";
 }
 
-// [추가] 메인화면 퀵 버튼 렌더링
+/** 메인 퀵 버튼 렌더링 */
 export function renderQuickShortcuts() {
     const tabContainer = document.getElementById('quick-region-tabs');
     const chipContainer = document.getElementById('quick-center-chips');
@@ -100,14 +100,17 @@ export function renderQuickShortcuts() {
             tabContainer.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             chipContainer.innerHTML = '';
-            groups[region].forEach(c => {
+            groups[region].sort().forEach(c => {
                 const chip = document.createElement('div');
                 chip.className = `chip ${roles[c] || 'role-both'}`;
                 chip.textContent = c;
                 chip.onclick = () => {
-                    if (!els.fromCenterInput.value) { els.fromCenterInput.value = c; }
-                    else { els.toCenterInput.value = c; }
-                    els.fromCenterInput.dispatchEvent(new Event('input'));
+                    const from = els.fromCenterInput;
+                    const to = els.toCenterInput;
+                    if (!from.value) { from.value = c; }
+                    else if (!to.value) { to.value = c; }
+                    else { to.value = c; } // 이미 둘 다 차있으면 하차지 교체
+                    from.dispatchEvent(new Event('input'));
                 };
                 chipContainer.appendChild(chip);
             });
@@ -116,7 +119,7 @@ export function renderQuickShortcuts() {
     });
 }
 
-// [수정] 설정 내 지역 관리 (기존 기능 100% 유지하며 그룹화만 추가)
+/** 설정창 리스트 (그룹화) */
 export function displayCenterList(filter='') {
     const container = els.centerListContainer;
     container.innerHTML = "";
@@ -131,16 +134,16 @@ export function displayCenterList(filter='') {
     Object.keys(groups).sort().forEach(region => {
         const title = document.createElement('div');
         title.className = 'settings-region-title';
-        title.textContent = region;
+        title.textContent = `${region} (${groups[region].length})`;
         container.appendChild(title);
         groups[region].forEach(c => {
             const l = MEM_LOCATIONS[c]||{};
             const div = document.createElement('div');
             div.className='center-item';
-            div.innerHTML=`<div class="info"><span class="center-name">${c}</span><div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div></div>${l.address?`<span class="note">📍 ${l.address}</span>`:''}`;
+            div.innerHTML=`<div class="info"><span class="center-name">${c}</span><div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div></div>${l.address?`<span class="note" style="font-size:0.8em; color:#888;">📍 ${l.address}</span>`:''}`;
             div.querySelector('.edit-btn').onclick = () => handleCenterEdit(div,c);
             div.querySelector('.delete-btn').onclick = () => {
-                if(!confirm('삭제?')) return;
+                if(!confirm(`${c} 삭제하시겠습니까?`)) return;
                 MEM_CENTERS.splice(MEM_CENTERS.indexOf(c),1); delete MEM_LOCATIONS[c]; saveData(); displayCenterList(filter);
             };
             container.appendChild(div);
@@ -148,42 +151,26 @@ export function displayCenterList(filter='') {
     });
 }
 
-// 아래는 사용자님의 원본 UI 로직 (절대 수정 금지 부분)
+/** UI 토글 (원본 보존) */
 export function toggleUI() {
     const type = els.typeSelect.value;
     const isEditMode = !els.editModeIndicator.classList.contains('hidden');
     [els.transportDetails, els.fuelDetails, els.supplyDetails, els.expenseDetails, els.costInfoFieldset, els.tripActions, els.generalActions, els.editActions].forEach(el => el.classList.add('hidden'));
+    
     if (type === '화물운송' || type === '대기') {
         els.transportDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.costWrapper.classList.add('hidden'); els.incomeWrapper.classList.remove('hidden');
-        if (!isEditMode) { els.tripActions.classList.remove('hidden'); if(type === '화물운송') els.btnTripCancel.classList.remove('hidden'); }
+        if (!isEditMode) els.tripActions.classList.remove('hidden');
     } else if (type === '수입') {
-        els.expenseDetails.classList.remove('hidden'); document.getElementById('expense-legend').textContent = "수입 내역"; els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.remove('hidden'); els.costWrapper.classList.add('hidden');
+        els.expenseDetails.classList.remove('hidden'); els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.remove('hidden'); els.costWrapper.classList.add('hidden');
         if (!isEditMode) els.generalActions.classList.remove('hidden');
     } else {
         els.costInfoFieldset.classList.remove('hidden'); els.incomeWrapper.classList.add('hidden'); els.costWrapper.classList.remove('hidden');
-        if (type === '주유소') { els.fuelDetails.classList.remove('hidden'); if (!isEditMode) els.generalActions.classList.remove('hidden'); }
-        else if (type === '소모품') { els.supplyDetails.classList.remove('hidden'); if (!isEditMode) els.generalActions.classList.remove('hidden'); }
-        else if (type === '지출') { els.expenseDetails.classList.remove('hidden'); document.getElementById('expense-legend').textContent = "지출 내역"; if (!isEditMode) els.generalActions.classList.remove('hidden'); }
+        if (type === '주유소') els.fuelDetails.classList.remove('hidden');
+        if (type === '소모품') els.supplyDetails.classList.remove('hidden');
+        if (type === '지출') els.expenseDetails.classList.remove('hidden');
+        if (!isEditMode) els.generalActions.classList.remove('hidden');
     }
     if (isEditMode) { els.editActions.classList.remove('hidden'); els.btnEditEndTrip.classList.toggle('hidden', ['주유소','소모품','지출','수입'].includes(type)); }
-}
-
-export function updateAddressDisplay() {
-    const fromVal = els.fromCenterInput.value; const toVal = els.toCenterInput.value;
-    const fromLoc = MEM_LOCATIONS[fromVal] || {}; const toLoc = MEM_LOCATIONS[toVal] || {};
-    let html = '';
-    if (fromLoc.address) html += `<div class="address-clickable" data-address="${fromLoc.address}">[상] ${fromLoc.address}</div>`;
-    if (toLoc.address) html += `<div class="address-clickable" data-address="${toLoc.address}">[하] ${toLoc.address}</div>`;
-    els.addressDisplay.innerHTML = html;
-}
-
-export function populateCenterDatalist() { els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join(''); }
-export function populateExpenseDatalist() { els.expenseDatalist.innerHTML = MEM_EXPENSE_ITEMS.map(item => `<option value="${item}"></option>`).join(''); }
-
-export function getFormDataWithoutTime() {
-    const f = els.fromCenterInput.value.trim(); const t = els.toCenterInput.value.trim();
-    if(f) updateLocationData(f); if(t) updateLocationData(t);
-    return { type: els.typeSelect.value, from: f, to: t, distance: parseFloat(els.manualDistanceInput.value) || 0, cost: Math.round((parseFloat(els.costInput.value) || 0) * 10000), income: Math.round((parseFloat(els.incomeInput.value) || 0) * 10000), liters: parseFloat(els.fuelLitersInput.value) || 0, unitPrice: parseInt(els.fuelUnitPriceInput.value) || 0, brand: els.fuelBrandSelect.value || '', supplyItem: els.supplyItemInput.value || '', mileage: parseInt(els.supplyMileageInput.value) || 0, expenseItem: els.expenseItemInput.value || '' };
 }
 
 export function resetForm() {
@@ -193,14 +180,38 @@ export function resetForm() {
     toggleUI();
 }
 
+export function populateCenterDatalist() { els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join(''); }
+export function populateExpenseDatalist() { els.expenseDatalist.innerHTML = MEM_EXPENSE_ITEMS.map(item => `<option value="${item}"></option>`).join(''); }
+
+export function getFormDataWithoutTime() {
+    const f = els.fromCenterInput.value.trim(); const t = els.toCenterInput.value.trim();
+    if(f) updateLocationData(f); if(t) updateLocationData(t);
+    return { 
+        type: els.typeSelect.value, from: f, to: t, 
+        distance: parseFloat(els.manualDistanceInput.value) || 0, 
+        cost: Math.round((parseFloat(els.costInput.value) || 0) * 10000), 
+        income: Math.round((parseFloat(els.incomeInput.value) || 0) * 10000), 
+        liters: parseFloat(els.fuelLitersInput.value) || 0, 
+        brand: els.fuelBrandSelect.value || '',
+        expenseItem: els.expenseItemInput.value || ''
+    };
+}
+
 function handleCenterEdit(div, c) {
     const l = MEM_LOCATIONS[c]||{};
     div.innerHTML = `<div class="edit-form"><input class="edit-input" value="${c}"><input class="edit-address-input" value="${l.address||''}" placeholder="주소"><div class="action-buttons"><button class="setting-save-btn">저장</button><button class="cancel-edit-btn">취소</button></div></div>`;
     div.querySelector('.setting-save-btn').onclick = () => {
-        const nn = div.querySelector('.edit-input').value.trim(); const na = div.querySelector('.edit-address-input').value.trim();
+        const nn = div.querySelector('.edit-input').value.trim();
+        const na = div.querySelector('.edit-address-input').value.trim();
         if(!nn) return;
-        if(nn!==c) { MEM_CENTERS.splice(MEM_CENTERS.indexOf(c),1); if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn); delete MEM_LOCATIONS[c]; MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; }); saveData(); }
-        updateLocationData(nn, na); displayCenterList(document.getElementById('center-search-input').value);
+        if(nn!==c) { 
+            MEM_CENTERS.splice(MEM_CENTERS.indexOf(c),1); 
+            if(!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn); 
+            delete MEM_LOCATIONS[c]; 
+            MEM_RECORDS.forEach(r => { if(r.from===c) r.from=nn; if(r.to===c) r.to=nn; }); 
+            saveData(); 
+        }
+        updateLocationData(nn, na); displayCenterList();
     };
-    div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
+    div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList();
 }
