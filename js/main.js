@@ -4,63 +4,68 @@ import * as UI from './ui.js';
 import * as Stats from './stats.js';
 import * as Location from './location.js';
 
-window.viewDateDetails = (date) => { 
-    document.getElementById('today-date-picker').value = date; 
-    document.querySelector('.tab-btn[data-view="today"]').click();
-    Stats.displayTodayRecords(date); 
-};
-
-window.toggleAllSummaryValues = (el) => { 
-    const isShow = el.classList.toggle('active'); 
-    el.querySelectorAll('.summary-item').forEach(item => {
-        item.classList.toggle('active', isShow);
-        item.querySelector('.summary-value').classList.toggle('hidden', !isShow);
-    });
-};
-
 function init() {
     Data.loadAllData();
-    Location.populateCenterDatalist();
-    UI.populateExpenseDatalist();
+    UI.resetForm();
     
-    // 기본 날짜 설정 및 초기 렌더링
     const targetDate = Utils.getStatisticalDate(Utils.getTodayString(), Utils.getCurrentTimeString());
     document.getElementById('today-date-picker').value = targetDate;
-    UI.resetForm();
-    updateAll();
-
-    // 상하차지 입력 리스너
-    [UI.els.fromCenterInput, UI.els.toCenterInput].forEach(el => {
-        el.addEventListener('input', Location.handleTransportInput);
+    
+    // 이벤트 바인딩
+    UI.els.typeSelect.onchange = UI.toggleUI;
+    [UI.els.fromCenterInput, UI.els.toCenterInput].forEach(input => {
+        input.oninput = Location.handleTransportInput;
     });
 
-    // 버튼 이벤트들 (기존 main.js와 동일하게 Location/Data/Stats 호출)
     UI.els.btnStartTrip.onclick = () => {
-        const data = UI.getFormDataWithoutTime();
-        Data.addRecord({ id: Date.now(), date: Utils.getTodayString(), time: Utils.getCurrentTimeString(), ...data });
-        Utils.showToast('저장되었습니다.'); UI.resetForm(); updateAll();
-    };
-    
-    UI.els.btnSaveGeneral.onclick = () => {
-        const data = UI.getFormDataWithoutTime();
-        if (data.expenseItem) Data.updateExpenseItemData(data.expenseItem);
-        Data.addRecord({ id: Date.now(), date: UI.els.dateInput.value, time: UI.els.timeInput.value, ...data });
-        Utils.showToast('저장되었습니다.'); UI.populateExpenseDatalist(); UI.resetForm(); updateAll();
+        const formData = {
+            type: UI.els.typeSelect.value,
+            from: UI.els.fromCenterInput.value.trim(),
+            to: UI.els.toCenterInput.value.trim(),
+            distance: parseFloat(UI.els.manualDistanceInput.value) || 0,
+            income: Math.round((parseFloat(UI.els.incomeInput.value) || 0) * 10000),
+            date: Utils.getTodayString(),
+            time: Utils.getCurrentTimeString()
+        };
+        Data.addRecord({ id: Date.now(), ...formData });
+        Utils.showToast("저장되었습니다.");
+        UI.resetForm();
+        updateAll();
     };
 
-    // 설정 페이지 아코디언 및 지역 관리 로드
-    document.getElementById('toggle-center-management').onclick = function() {
-        this.classList.toggle('active');
-        const body = this.nextElementSibling;
-        body.classList.toggle('hidden');
-        if(!body.classList.contains('hidden')) Location.displayCenterList();
+    document.getElementById('go-to-settings-btn').onclick = () => {
+        document.getElementById('main-page').classList.add('hidden');
+        document.getElementById('settings-page').classList.remove('hidden');
+        document.getElementById('go-to-settings-btn').classList.add('hidden');
+        document.getElementById('back-to-main-btn').classList.remove('hidden');
     };
+
+    document.getElementById('back-to-main-btn').onclick = () => {
+        document.getElementById('main-page').classList.remove('hidden');
+        document.getElementById('settings-page').classList.add('hidden');
+        document.getElementById('go-to-settings-btn').classList.remove('hidden');
+        document.getElementById('back-to-main-btn').classList.add('hidden');
+    };
+
+    document.getElementById('toggle-center-management').onclick = function() {
+        this.nextElementSibling.classList.toggle('hidden');
+        Location.displayCenterList();
+    };
+
+    window.deleteCenter = (name) => {
+        if(!confirm("삭제하시겠습니까?")) return;
+        Data.MEM_CENTERS.splice(Data.MEM_CENTERS.indexOf(name), 1);
+        Data.saveData();
+        Location.displayCenterList();
+        Location.populateCenterDatalist();
+    };
+
+    updateAll();
 }
 
 function updateAll() {
-    const date = document.getElementById('today-date-picker').value;
-    Stats.displayTodayRecords(date);
-    // ... 나머지 통계 업데이트 호출 ...
+    const d = document.getElementById('today-date-picker').value;
+    Stats.displayTodayRecords(d);
 }
 
 document.addEventListener("DOMContentLoaded", init);

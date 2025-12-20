@@ -1,91 +1,86 @@
 import { els } from './ui.js';
-import { 
-    MEM_LOCATIONS, MEM_CENTERS, MEM_FARES, MEM_DISTANCES, MEM_COSTS, 
-    saveData, updateLocationData, MEM_RECORDS 
-} from './data.js';
+import { MEM_LOCATIONS, MEM_CENTERS, MEM_FARES, MEM_DISTANCES, MEM_RECORDS, updateLocationData, saveData } from './data.js';
 
-/** 상하차지 자동완성 목록 갱신 */
-export function populateCenterDatalist() {
-    els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join('');
+function getRegionName(name) {
+    const regions = ["인천", "용인", "안성", "이천", "안산", "시흥", "천안", "남양주", "고양"];
+    for (const r of regions) { if (name.includes(r)) return r; }
+    return "기타";
 }
 
-/** 상하차지 입력에 따른 주소/메모 표시 */
-export function updateAddressDisplay() {
-    const fromLoc = MEM_LOCATIONS[els.fromCenterInput.value.trim()] || {};
-    const toLoc = MEM_LOCATIONS[els.toCenterInput.value.trim()] || {};
-    let html = '';
-    if (fromLoc.address) html += `<div class="address-clickable" data-address="${fromLoc.address}">[상] ${fromLoc.address}</div>`;
-    if (fromLoc.memo) html += `<div class="memo-display">[상] ${fromLoc.memo}</div>`;
-    if (toLoc.address) html += `<div class="address-clickable" data-address="${toLoc.address}">[하] ${toLoc.address}</div>`;
-    if (toLoc.memo) html += `<div class="memo-display">[하] ${toLoc.memo}</div>`;
-    els.addressDisplay.innerHTML = html;
-}
+export function renderLocationButtons() {
+    const container = document.getElementById('location-btn-container');
+    if (!container) return;
+    container.innerHTML = "";
 
-/** 상하차지 조합에 따른 거리/금액 자동 입력 */
-export function handleTransportInput() {
-    const from = els.fromCenterInput.value.trim();
-    const to = els.toCenterInput.value.trim();
-    if ((els.typeSelect.value === '화물운송' || els.typeSelect.value === '대기') && from && to) {
-        const key = `${from}-${to}`;
-        if (MEM_FARES[key]) els.incomeInput.value = (MEM_FARES[key] / 10000).toFixed(2);
-        if (MEM_DISTANCES[key]) els.manualDistanceInput.value = MEM_DISTANCES[key];
-        if (MEM_COSTS[key]) els.costInput.value = (MEM_COSTS[key] / 10000).toFixed(2);
-    }
-    updateAddressDisplay();
-}
+    // 빈도 계산
+    const freq = {};
+    MEM_RECORDS.forEach(r => {
+        if (r.from) freq[r.from] = (freq[r.from] || 0) + 1;
+        if (r.to) freq[r.to] = (freq[r.to] || 0) + 1;
+    });
 
-/** 신규 지역 추가 */
-export function addCenter(newCenter, address = '', memo = '') {
-    const trimmed = newCenter?.trim();
-    if (!trimmed) return;
-    updateLocationData(trimmed, address, memo);
-    populateCenterDatalist();
-}
+    const sorted = [...MEM_CENTERS].sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
 
-/** 설정 페이지의 지역 관리 목록 렌더링 */
-export function displayCenterList(filter = '') {
-    els.centerListContainer.innerHTML = "";
-    const list = MEM_CENTERS.filter(c => c.includes(filter));
-    if (list.length === 0) { els.centerListContainer.innerHTML = '<p class="note">결과 없음</p>'; return; }
+    const groups = { "자주 방문 (TOP 5)": sorted.slice(0, 5) };
+    sorted.slice(5).forEach(c => {
+        const r = getRegionName(c);
+        if (!groups[r]) groups[r] = [];
+        groups[r].push(c);
+    });
 
-    list.forEach(c => {
-        const l = MEM_LOCATIONS[c] || {};
-        const div = document.createElement('div');
-        div.className = 'center-item';
-        div.innerHTML = `
-            <div class="info"><span class="center-name">${c}</span>
-            <div class="action-buttons"><button class="edit-btn">수정</button><button class="delete-btn">삭제</button></div></div>
-            ${l.address ? `<span class="note">주소: ${l.address}</span>` : ''}`;
-        
-        div.querySelector('.edit-btn').onclick = () => handleCenterEdit(div, c);
-        div.querySelector('.delete-btn').onclick = () => {
-            if (!confirm('삭제하시겠습니까?')) return;
-            const idx = MEM_CENTERS.indexOf(c);
-            if (idx > -1) MEM_CENTERS.splice(idx, 1);
-            delete MEM_LOCATIONS[c];
-            saveData();
-            displayCenterList(document.getElementById('center-search-input').value);
-        };
-        els.centerListContainer.appendChild(div);
+    Object.keys(groups).forEach(region => {
+        if (groups[region].length === 0) return;
+        const sec = document.createElement('div');
+        sec.className = 'region-section';
+        sec.innerHTML = `<div class="region-title">${region}</div>`;
+        const grid = document.createElement('div');
+        grid.className = 'location-btn-grid';
+
+        groups[region].forEach(c => {
+            const btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'loc-quick-btn';
+            const info = MEM_LOCATIONS[c] || {};
+            let hint = info.memo?.includes("(상") ? "🆙" : info.memo?.includes("(하") ? "⬇️" : "";
+            btn.innerHTML = `${c}<small>${hint}</small>`;
+            
+            btn.onclick = () => {
+                if (document.activeElement === els.toCenterInput || (els.fromCenterInput.value && document.activeElement !== els.fromCenterInput)) {
+                    els.toCenterInput.value = c;
+                } else {
+                    els.fromCenterInput.value = c;
+                }
+                handleTransportInput();
+            };
+            grid.appendChild(btn);
+        });
+        sec.appendChild(grid);
+        container.appendChild(sec);
     });
 }
 
-function handleCenterEdit(div, c) {
-    const l = MEM_LOCATIONS[c] || {};
-    div.innerHTML = `<div class="edit-form"><input class="edit-input" value="${c}"><input class="edit-address-input" value="${l.address || ''}"><input class="edit-memo-input" value="${l.memo || ''}"><div class="action-buttons"><button class="setting-save-btn">저장</button><button class="cancel-edit-btn">취소</button></div></div>`;
-    div.querySelector('.setting-save-btn').onclick = () => {
-        const nn = div.querySelector('.edit-input').value.trim();
-        if (!nn) return;
-        if (nn !== c) {
-            const idx = MEM_CENTERS.indexOf(c);
-            if (idx > -1) MEM_CENTERS.splice(idx, 1);
-            if (!MEM_CENTERS.includes(nn)) MEM_CENTERS.push(nn);
-            delete MEM_LOCATIONS[c];
-            MEM_RECORDS.forEach(r => { if (r.from === c) r.from = nn; if (r.to === c) r.to = nn; });
-            saveData();
-        }
-        updateLocationData(nn, div.querySelector('.edit-address-input').value.trim(), div.querySelector('.edit-memo-input').value.trim());
-        displayCenterList(document.getElementById('center-search-input').value);
-    };
-    div.querySelector('.cancel-edit-btn').onclick = () => displayCenterList(document.getElementById('center-search-input').value);
+export function handleTransportInput() {
+    const f = els.fromCenterInput.value.trim();
+    const t = els.toCenterInput.value.trim();
+    if (f && t) {
+        const key = `${f}-${t}`;
+        if (MEM_FARES[key]) els.incomeInput.value = (MEM_FARES[key] / 10000).toFixed(2);
+        if (MEM_DISTANCES[key]) els.manualDistanceInput.value = MEM_DISTANCES[key];
+    }
+    const fL = MEM_LOCATIONS[f] || {}, tL = MEM_LOCATIONS[t] || {};
+    els.addressDisplay.innerHTML = (fL.address ? `[상] ${fL.address}<br>` : '') + (tL.address ? `[하] ${tL.address}` : '');
+}
+
+export function populateCenterDatalist() {
+    els.centerDatalist.innerHTML = MEM_CENTERS.map(c => `<option value="${c}"></option>`).join('');
+    renderLocationButtons();
+}
+
+export function displayCenterList() {
+    const cont = document.getElementById('center-list-container');
+    cont.innerHTML = MEM_CENTERS.map(c => `
+        <div class="center-item" style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;">
+            <span>${c}</span>
+            <button onclick="window.deleteCenter('${c}')" style="background:red; color:white; padding:2px 5px; font-size:0.8em;">삭제</button>
+        </div>
+    `).join('');
 }
