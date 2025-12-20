@@ -430,8 +430,6 @@ backToMainBtn.addEventListener("click", () => {
     goToSettingsBtn.classList.remove("hidden"); 
     backToMainBtn.classList.add("hidden"); 
     updateAllDisplays(); 
-// updateAllDisplays 함수 안쪽 맨 아래 추가
-UI.initQuickButtons();
 });
 
 // 아코디언 메뉴
@@ -535,5 +533,3 @@ document.getElementById('mileage-summary-controls').querySelectorAll('.tab-btn')
 });
 
 document.addEventListener("DOMContentLoaded", initialSetup);
-// initialSetup 함수 맨 아래에 추가
-UI.initQuickButtons(); // 퀵 버튼 초기화
